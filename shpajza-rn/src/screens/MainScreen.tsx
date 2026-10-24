@@ -32,7 +32,7 @@ import {
   useRecipe
 } from '../services/api';
 import { Colors, darkColors, lightColors } from '../theme';
-import { AiSuggestion, AppSettings, InventoryItem, Recipe, RecipeMatch, User } from '../types';
+import { AiMode, AiSuggestion, AppSettings, InventoryItem, Recipe, RecipeMatch, User } from '../types';
 import {
   buildRecipeShareText,
   formatIngredient,
@@ -42,6 +42,12 @@ import {
 } from '../utils';
 
 type View_ = 'inventory' | 'recipes' | 'matches' | 'profile';
+
+const AI_MODES: { key: AiMode; label: string }[] = [
+  { key: 'healthy', label: 'Zdravija hrana' },
+  { key: 'quick', label: 'Brzo gotovo' },
+  { key: 'full', label: 'Puni slijed jela' }
+];
 
 const TABS: { key: Exclude<View_, 'profile'>; label: string }[] = [
   { key: 'inventory', label: 'Inventar' },
@@ -73,6 +79,7 @@ export default function MainScreen({ navigation, onLogout }: Props) {
   const [settingsModal, setSettingsModal] = useState(false);
   const [ai, setAi] = useState<AiSuggestion | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiMode, setAiMode] = useState<AiMode | undefined>(undefined);
 
   const colors: Colors = settings.theme === 'dark' ? darkColors : lightColors;
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -211,11 +218,11 @@ export default function MainScreen({ navigation, onLogout }: Props) {
     }
   };
 
-  const generateAi = async () => {
+  const generateAi = async (mode: AiMode | undefined = aiMode, regenerate = false) => {
+    setAiMode(mode);
     setAiLoading(true);
     try {
-      const list = inventory.map((item) => `${item.name} ${item.quantity} ${item.unit}`).join(', ') || 'nema namirnica';
-      setAi(await fetchAiSuggestion(`Predloži jedan praktičan recept pomoću ovih namirnica: ${list}`));
+      setAi(await fetchAiSuggestion({ mode, avoidTitle: regenerate ? ai?.title : undefined }));
     } catch (error) {
       if (error instanceof AuthError) {
         onLogout();
@@ -350,13 +357,28 @@ export default function MainScreen({ navigation, onLogout }: Props) {
       </View>
 
       <View style={[styles.card, { backgroundColor: colors.cardAlt }]}>
-        <View style={styles.rowBetween}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.aiLabel}>AI RECEPT</Text>
-            <Text style={styles.itemName}>Prijedlog na temelju inventara</Text>
-          </View>
-          <Pressable style={[styles.pill, aiLoading && { opacity: 0.6 }]} onPress={generateAi} disabled={aiLoading}>
-            <Text style={styles.pillText}>{aiLoading ? '...' : 'Generiraj'}</Text>
+        <Text style={styles.aiLabel}>AI RECEPT</Text>
+        <Text style={styles.itemName}>Prijedlog na temelju inventara</Text>
+        <View style={[styles.chips, { marginBottom: 4 }]}>
+          {AI_MODES.map(({ key, label }) => {
+            const active = aiMode === key;
+            return (
+              <Pressable
+                key={key}
+                disabled={aiLoading}
+                onPress={() => generateAi(key)}
+                style={[styles.aiBtn, { backgroundColor: active ? colors.primary : colors.card, borderColor: colors.primary }, aiLoading && { opacity: 0.6 }]}
+              >
+                <Text style={{ color: active ? colors.onPrimary : colors.primary, fontWeight: '700' }}>{label}</Text>
+              </Pressable>
+            );
+          })}
+          <Pressable
+            disabled={aiLoading}
+            onPress={() => generateAi(aiMode, true)}
+            style={[styles.aiBtn, { backgroundColor: colors.warning, borderColor: colors.warning }, aiLoading && { opacity: 0.6 }]}
+          >
+            <Text style={{ color: colors.onPrimary, fontWeight: '800' }}>↻ Regeneriraj</Text>
           </Pressable>
         </View>
         {aiLoading ? (
@@ -365,10 +387,23 @@ export default function MainScreen({ navigation, onLogout }: Props) {
           <View style={{ marginTop: 8 }}>
             <Text style={styles.itemName}>{ai.title || 'Predloženi recept'}</Text>
             <Text style={styles.meta}>{ai.description || 'Predloženo na temelju inventara.'}</Text>
-            <Text style={styles.aiLine}>
-              <Text style={styles.bold}>Sastojci: </Text>
-              {(ai.ingredients || []).map(formatIngredient).join(', ') || 'Nema detalja o sastojcima.'}
-            </Text>
+            {ai.totalKcal ? (
+              <Text style={[styles.aiLine, { color: colors.primary, fontWeight: '800' }]}>
+                🔥 Ukupno {ai.totalKcal} kcal
+                {ai.servings && ai.servings > 1 ? ` · ${ai.kcalPerServing} kcal po porciji (${ai.servings} porcije)` : ''}
+              </Text>
+            ) : null}
+            <Text style={[styles.aiLine, styles.bold]}>Sastojci:</Text>
+            {(ai.ingredients || []).length ? (
+              (ai.ingredients || []).map((ingredient, index) => (
+                <View key={`${ingredient.name}-${index}`} style={styles.rowBetween}>
+                  <Text style={[styles.aiLine, { flex: 1, marginTop: 2 }]}>• {formatIngredient(ingredient)}</Text>
+                  {ingredient.kcal ? <Text style={[styles.meta, { marginTop: 2 }]}>{ingredient.kcal} kcal</Text> : null}
+                </View>
+              ))
+            ) : (
+              <Text style={styles.meta}>Nema detalja o sastojcima.</Text>
+            )}
             <Text style={styles.aiLine}>
               <Text style={styles.bold}>Razlog: </Text>
               {ai.reason || 'Najbolje odgovara vašem inventaru.'}
@@ -585,6 +620,7 @@ const makeStyles = (c: Colors) =>
     cardActions: { flexDirection: 'row', gap: 8, marginTop: 12 },
     aiLabel: { color: c.primary, fontWeight: '800', fontSize: 11, letterSpacing: 1 },
     aiLine: { color: c.text, marginTop: 6, lineHeight: 20 },
+    aiBtn: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 },
     bold: { fontWeight: '800' },
     bottomNav: { flexDirection: 'row', backgroundColor: c.card, borderTopWidth: 1, borderTopColor: c.border, paddingVertical: 8 },
     navItem: { flex: 1, alignItems: 'center' },

@@ -143,6 +143,17 @@ const parseJsonFromText = (text = '') => {
   }
 };
 
+const MODE_HINTS = {
+  healthy: 'Predloži ZDRAVIJE, lagano i hranjivo jelo (više povrća/proteina, manje masnoće i šećera).',
+  quick: 'Predloži jelo koje je GOTOVO BRZO (najviše 15-20 minuta pripreme, malo koraka).',
+  full: 'Predloži PUNI SLIJED JELA (predjelo, glavno jelo i desert). U instructions jasno odvoji svaki slijed (Predjelo / Glavno jelo / Desert) s koracima, a ingredients neka sadrži sastojke svih slijedova.',
+};
+
+const roundKcal = (value) => {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? Math.round(number) : 0;
+};
+
 const normalizeAiSuggestion = (payload = {}) => {
   const title = payload.title || payload.name || 'Predloženi recept';
   const description = payload.description || 'Predloženo uz pomoć AI modela.';
@@ -153,22 +164,31 @@ const normalizeAiSuggestion = (payload = {}) => {
           name: item.name || 'Sastojak',
           quantity: Number(item.quantity ?? 1),
           unit: item.unit || 'kom',
+          kcal: roundKcal(item.kcal),
         };
       })
     : [];
+
+  const totalKcal = ingredients.reduce((sum, item) => sum + item.kcal, 0);
+  const servings = Math.max(1, Math.round(Number(payload.servings) || 1));
 
   return {
     title: String(title).trim() || 'Predloženi recept',
     description: String(description).trim() || 'Predloženo uz pomoć AI modela.',
     ingredients,
-    instructions: payload.instructions || 'Koristite namirnice koje imate i prilagodite količine po potrebi.',
+    instructions: Array.isArray(payload.instructions)
+      ? payload.instructions.join('\n')
+      : payload.instructions || 'Koristite namirnice koje imate i prilagodite količine po potrebi.',
     confidence: Number(payload.confidence ?? 85),
     source: 'ai',
     reason: payload.reason || 'Prijedlog je generiran od strane AI modela.',
+    servings,
+    totalKcal,
+    kcalPerServing: Math.round(totalKcal / servings),
   };
 };
 
-const generateRecipeSuggestion = async ({ inventoryItems = [], recipes = [], userPrompt = '' } = {}) => {
+const generateRecipeSuggestion = async ({ inventoryItems = [], recipes = [], userPrompt = '', mode = '', avoidTitle = '' } = {}) => {
   const fallback = buildFallbackSuggestion({ inventoryItems, recipes });
 
   const apiKey = process.env.GROQ_API_KEY;
@@ -196,11 +216,11 @@ const generateRecipeSuggestion = async ({ inventoryItems = [], recipes = [], use
         messages: [
           {
             role: 'system',
-            content: 'Ti si kuharski asistent. Odgovaraj ISKLJUČIVO na hrvatskom jeziku i vrati samo valjan JSON s ključevima: title (naziv jela), description (kratak opis, 1-2 rečenice), ingredients (niz objekata s name, quantity (broj), unit (jedna od: kom, g, kg, l, ml, pak, kutija, karton)), instructions (detaljne upute za pripremu, korak po korak, svaki korak u novom retku označen brojem), confidence (broj 0-100), reason (zašto je ovaj recept dobar izbor). Prvenstveno koristi namirnice koje korisnik ima; količine neka budu realne.'
+            content: 'Ti si kuharski asistent. Odgovaraj ISKLJUČIVO na hrvatskom jeziku i vrati samo valjan JSON s ključevima: title (naziv jela), description (kratak opis, 1-2 rečenice),             ingredients (niz objekata s name, quantity (broj), unit (jedna od: kom, g, kg, l, ml, pak, kutija, karton), kcal (UKUPNE kalorije te količine sastojka, cijeli broj, procijenjene prema uobičajenim nutritivnim vrijednostima)), servings (broj porcija), instructions (detaljne upute za pripremu, korak po korak, svaki korak u novom retku označen brojem), confidence (broj 0-100), reason (zašto je ovaj recept dobar izbor). Prvenstveno koristi namirnice koje korisnik ima; količine neka budu realne.'
           },
           {
             role: 'user',
-            content: `Imam ove namirnice: ${inventorySummary}. Zahtjev: ${userPrompt || 'Predloži jedan praktičan recept od onoga što imam.'}`
+                        content: `Imam ove namirnice: ${inventorySummary}. Zahtjev: ${[MODE_HINTS[mode], userPrompt].filter(Boolean).join(' ') || 'Predloži jedan praktičan recept od onoga što imam.'}${avoidTitle ? ` Predloži DRUGAČIJE jelo od "${avoidTitle}".` : ''}`
           }
         ],
         temperature: 0.7,

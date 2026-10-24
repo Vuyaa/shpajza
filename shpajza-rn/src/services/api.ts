@@ -3,6 +3,7 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import {
   AiSuggestion,
+  AiMode,
   AppSettings,
   InventoryItem,
   Recipe,
@@ -179,10 +180,12 @@ export async function loadMatches(): Promise<RecipeMatch[]> {
   return response.matches || [];
 }
 
-export async function fetchAiSuggestion(prompt: string): Promise<AiSuggestion | null> {
+export async function fetchAiSuggestion(
+  options: { mode?: AiMode; avoidTitle?: string } = {}
+): Promise<AiSuggestion | null> {
   const response = await requestJson('/api/recipes/ai-suggest', {
     method: 'POST',
-    body: JSON.stringify({ prompt })
+    body: JSON.stringify(options)
   });
   return response.suggestion || null;
 }

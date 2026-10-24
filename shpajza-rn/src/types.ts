@@ -26,13 +26,18 @@ export type RecipeMatch = {
   missingIngredients: { name: string; required: number; unit: string; available: number }[];
 };
 
+export type AiMode = 'healthy' | 'quick' | 'full';
+
 export type AiSuggestion = {
   title?: string;
   description?: string;
-  ingredients?: RecipeIngredient[];
+  ingredients?: (RecipeIngredient & { kcal?: number })[];
   instructions?: string;
   confidence?: number;
   reason?: string;
+  servings?: number;
+  totalKcal?: number;
+  kcalPerServing?: number;
 };
 
 export type AppSettings = {

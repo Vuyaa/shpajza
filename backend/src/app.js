@@ -567,7 +567,7 @@ app.get('/api/recipes', async (req, res) => {
 });
 
 app.post('/api/recipes/ai-suggest', requireAuth, async (req, res) => {
-  const { prompt = '' } = req.body || {};
+  const { prompt = '', mode = '', avoidTitle = '' } = req.body || {};
 
   const userInventory = await listInventoryForUser(req.user.id);
   const userRecipes = await listRecipesForUser(req.user.id);
@@ -580,6 +580,8 @@ app.post('/api/recipes/ai-suggest', requireAuth, async (req, res) => {
     inventoryItems: userInventory,
     recipes: allRecipes,
     userPrompt: prompt,
+    mode,
+    avoidTitle,
   });
 
   return res.json({ suggestion });
