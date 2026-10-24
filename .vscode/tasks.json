@@ -8,6 +8,14 @@
 			"isBackground": false,
 			"problemMatcher": [],
 			"group": "build"
+		},
+		{
+			"label": "Git push CORS fix",
+			"type": "shell",
+			"command": "git status; git add .; git commit -m CORSFix; git push origin HEAD",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
 		}
 	]
 }
