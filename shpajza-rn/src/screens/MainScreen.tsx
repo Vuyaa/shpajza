@@ -332,7 +332,7 @@ export default function MainScreen({ navigation, onLogout }: Props) {
       ) : (
         recipesView.map((recipe) => {
           const ready = Boolean(matchById.get(recipe.id)?.canMake);
-          const { summary, instructions } = splitRecipeDescription(recipe.description);
+          const { summary } = splitRecipeDescription(recipe.description);
           return (
             <Pressable key={recipe.id} style={styles.card} onPress={() => openRecipe(recipe)}>
               <View style={styles.rowBetween}>
@@ -346,23 +346,10 @@ export default function MainScreen({ navigation, onLogout }: Props) {
                   {ready ? 'Spremno' : 'Nedostaje'}
                 </Text>
               </View>
-              <Text style={styles.meta}>{summary}</Text>
-              {instructions ? <Text style={styles.instructions}>{instructions}</Text> : null}
-              <View style={styles.chips}>
-                {recipe.ingredients.map((ingredient, index) => (
-                  <Text key={`${ingredient.name}-${index}`} style={styles.chip}>
-                    {formatIngredient(ingredient)}
-                  </Text>
-                ))}
-              </View>
-              <View style={styles.cardActions}>
-                <Pressable style={styles.pill} onPress={() => consumeRecipe(recipe)}>
-                  <Text style={styles.pillText}>Koristi recept</Text>
-                </Pressable>
-                <Pressable style={[styles.pill, styles.pillSecondary]} onPress={() => shareRecipe(recipe)}>
-                  <Text style={[styles.pillText, { color: colors.text }]}>Dijeli</Text>
-                </Pressable>
-              </View>
+              <Text style={styles.meta} numberOfLines={2}>{summary}</Text>
+              <Text style={[styles.meta, { marginTop: 8 }]}>
+                {recipe.ingredients.length} sastojaka · dodirni za detalje ›
+              </Text>
             </Pressable>
           );
         })
