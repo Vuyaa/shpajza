@@ -3,7 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#5c8ecf" />
     <title>Shpajza | Login / Registracija</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="media/icon.svg" type="image/svg+xml" />
     <style>
       :root {
         --bg-top: #dfeaf8;
@@ -204,6 +207,19 @@
         cursor: pointer;
       }
 
+      .install-button {
+        margin-top: 20px;
+        border: none;
+        border-radius: 999px;
+        padding: 12px 18px;
+        background: linear-gradient(135deg, var(--primary), #7aa9e6);
+        color: white;
+        font-size: 0.95rem;
+        font-weight: 800;
+        cursor: pointer;
+        box-shadow: 0 18px 28px rgba(92, 142, 207, 0.2);
+      }
+
       .hidden {
         display: none !important;
       }
@@ -260,6 +276,8 @@
           <span id="switch-text">Nemaš račun?</span>
           <button type="button" id="switch-mode-btn">Registriraj se</button>
         </div>
+
+        <button id="install-app-btn" class="install-button hidden" type="button">Instaliraj aplikaciju</button>
       </div>
     </div>
 
@@ -333,6 +351,38 @@
         localStorage.removeItem('shpajzaUser');
         window.location.href = 'auth-view.html?demo=guest';
       });
+
+      const installAppBtn = document.getElementById('install-app-btn');
+      let deferredInstallPrompt = null;
+
+      window.addEventListener('beforeinstallprompt', (event) => {
+        event.preventDefault();
+        deferredInstallPrompt = event;
+
+        if (installAppBtn) {
+          installAppBtn.classList.remove('hidden');
+        }
+      });
+
+      installAppBtn?.addEventListener('click', async () => {
+        if (!deferredInstallPrompt) {
+          alert('Instalacija nije dostupna u ovom pregledniku. Koristi HTTPS web stranicu i pokušaj ponovno.');
+          return;
+        }
+
+        deferredInstallPrompt.prompt();
+        await deferredInstallPrompt.userChoice;
+        deferredInstallPrompt = null;
+        installAppBtn.classList.add('hidden');
+      });
+
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js').catch((error) => {
+            console.warn('Service worker registration failed:', error);
+          });
+        });
+      }
 
       form.addEventListener('submit', async (event) => {
         event.preventDefault();

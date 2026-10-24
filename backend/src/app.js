@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const { prisma } = require('./db');
 const { inventory: initialInventory, recipes: defaultRecipes } = require('./data/mockData');
 const { findMatchingRecipes } = require('./services/recipeMatcher');
+const { generateRecipeSuggestion } = require('./services/aiRecipeService');
 
 const app = express();
 const JWT_SECRET = process.env.JWT_SECRET || 'Shpajza-dev-secret';
@@ -143,6 +144,48 @@ const resolveUserSettings = (userRecord = null) => {
   return normalizeSettings(userRecord.settings || {});
 };
 
+const seedDefaultInventoryForUser = async (userId) => {
+  const seededItems = initialInventory.map((item, index) => ({
+    id: `${item.id || 'inventory'}-${userId}-${index}`,
+    userId,
+    name: item.name,
+    quantity: Number(item.quantity ?? 0),
+    unit: item.unit,
+    expiryDate: item.expiryDate || null,
+    createdAt: new Date().toISOString(),
+  }));
+
+  if (isDbReady()) {
+    const existingItems = await prisma.inventoryItem.count({ where: { userId } });
+
+    if (existingItems === 0) {
+      await prisma.inventoryItem.createMany({
+        data: seededItems.map((item) => ({
+          id: item.id,
+          userId: item.userId,
+          name: item.name,
+          quantity: Number(item.quantity),
+          unit: item.unit,
+          expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
+          createdAt: new Date(item.createdAt),
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    return listInventoryForUser(userId);
+  }
+
+  const existingUserItems = inventory.filter((item) => item.userId === userId);
+  if (existingUserItems.length === 0) {
+    inventory.push(...seededItems);
+  }
+
+  return inventory
+    .filter((item) => item.userId === userId)
+    .map(normalizeInventoryItem);
+};
+
 const listInventoryForUser = async (userId) => {
   if (isDbReady()) {
     const rows = await prisma.inventoryItem.findMany({
@@ -150,12 +193,19 @@ const listInventoryForUser = async (userId) => {
       orderBy: { createdAt: 'desc' },
     });
 
+    if (rows.length === 0) {
+      return seedDefaultInventoryForUser(userId);
+    }
+
     return rows.map(normalizeInventoryItem);
   }
 
-  return inventory
-    .filter((item) => item.userId === userId)
-    .map(normalizeInventoryItem);
+  const userItems = inventory.filter((item) => item.userId === userId);
+  if (userItems.length === 0) {
+    return seedDefaultInventoryForUser(userId);
+  }
+
+  return userItems.map(normalizeInventoryItem);
 };
 
 const listRecipesForUser = async (userId) => {
@@ -240,6 +290,8 @@ app.post('/api/auth/register', async (req, res) => {
       name: newUser.name,
     });
 
+    await seedDefaultInventoryForUser(newUser.id);
+
     return res.status(201).json({
       message: 'User registered successfully.',
       token,
@@ -273,6 +325,8 @@ app.post('/api/auth/register', async (req, res) => {
     email: newUser.email,
     name: newUser.name,
   });
+
+  await seedDefaultInventoryForUser(newUser.id);
 
   return res.status(201).json({
     message: 'User registered successfully.',
@@ -560,6 +614,25 @@ app.get('/api/recipes', async (req, res) => {
   });
 });
 
+app.post('/api/recipes/ai-suggest', requireAuth, async (req, res) => {
+  const { prompt = '' } = req.body || {};
+
+  const userInventory = await listInventoryForUser(req.user.id);
+  const userRecipes = await listRecipesForUser(req.user.id);
+  const allRecipes = [
+    ...recipeStore.filter((recipe) => !recipe.userId).map(normalizeRecipe),
+    ...userRecipes,
+  ];
+
+  const suggestion = await generateRecipeSuggestion({
+    inventoryItems: userInventory,
+    recipes: allRecipes,
+    userPrompt: prompt,
+  });
+
+  return res.json({ suggestion });
+});
+
 app.post('/api/recipes', requireAuth, async (req, res) => {
   const { name, description, ingredients } = req.body || {};
 
@@ -628,6 +701,101 @@ app.post('/api/recipes', requireAuth, async (req, res) => {
   return res.status(201).json({ recipe: normalizeRecipe(newRecipe) });
 });
 
+const parseRecipeIngredients = (ingredients) => (Array.isArray(ingredients)
+  ? ingredients.map((ingredient) => ({
+      name: String(ingredient?.name || '').trim(),
+      quantity: Number(ingredient?.quantity ?? 0),
+      unit: String(ingredient?.unit || '').trim() || 'kom',
+    })).filter((ingredient) => ingredient.name && Number.isFinite(ingredient.quantity))
+  : []);
+
+app.put('/api/recipes/:id', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { name, description, ingredients } = req.body || {};
+
+  if (!name || !String(name).trim()) {
+    return res.status(400).json({ message: 'Recipe name is required.' });
+  }
+
+  const parsedIngredients = parseRecipeIngredients(ingredients);
+
+  if (!parsedIngredients.length) {
+    return res.status(400).json({ message: 'At least one ingredient is required.' });
+  }
+
+  const nextName = String(name).trim();
+  const nextDescription = String(description || '').trim() || 'Opis recepta';
+
+  if (isDbReady()) {
+    const existing = await prisma.recipe.findUnique({ where: { id } });
+
+    if (!existing || existing.userId !== req.user.id) {
+      return res.status(404).json({ message: 'Recipe not found or not editable.' });
+    }
+
+    const [, recipe] = await prisma.$transaction([
+      prisma.recipeIngredient.deleteMany({ where: { recipeId: id } }),
+      prisma.recipe.update({
+        where: { id },
+        data: {
+          name: nextName,
+          description: nextDescription,
+          ingredients: { create: parsedIngredients },
+        },
+        include: { ingredients: true },
+      }),
+    ]);
+
+    return res.json({ recipe: normalizeRecipe(recipe) });
+  }
+
+  const index = recipeStore.findIndex((recipe) => recipe.id === id && recipe.userId === req.user.id);
+
+  if (index === -1) {
+    return res.status(404).json({ message: 'Recipe not found or not editable.' });
+  }
+
+  recipeStore[index] = {
+    ...recipeStore[index],
+    name: nextName,
+    description: nextDescription,
+    ingredients: parsedIngredients.map((ingredient, ingredientIndex) => ({
+      id: `${id}-ingredient-${Date.now()}-${ingredientIndex}`,
+      ...ingredient,
+    })),
+  };
+
+  return res.json({ recipe: normalizeRecipe(recipeStore[index]) });
+});
+
+app.delete('/api/recipes/:id', requireAuth, async (req, res) => {
+  const { id } = req.params;
+
+  if (isDbReady()) {
+    const existing = await prisma.recipe.findUnique({ where: { id } });
+
+    if (!existing || existing.userId !== req.user.id) {
+      return res.status(404).json({ message: 'Recipe not found or not editable.' });
+    }
+
+    await prisma.$transaction([
+      prisma.recipeIngredient.deleteMany({ where: { recipeId: id } }),
+      prisma.recipe.delete({ where: { id } }),
+    ]);
+
+    return res.json({ deleted: true, id });
+  }
+
+  const index = recipeStore.findIndex((recipe) => recipe.id === id && recipe.userId === req.user.id);
+
+  if (index === -1) {
+    return res.status(404).json({ message: 'Recipe not found or not editable.' });
+  }
+
+  recipeStore.splice(index, 1);
+  return res.json({ deleted: true, id });
+});
+
 app.post('/api/recipes/:id/use', requireAuth, async (req, res) => {
   const recipeId = req.params.id;
   const allRecipes = [
@@ -645,27 +813,30 @@ app.post('/api/recipes/:id/use', requireAuth, async (req, res) => {
 
   for (const ingredient of recipe.ingredients) {
     const key = String(ingredient.name || '').trim().toLowerCase();
-    const item = items.find((candidate) => String(candidate.name || '').trim().toLowerCase() === key);
+    const matching = items.filter((candidate) => String(candidate.name || '').trim().toLowerCase() === key);
 
-    if (!item) {
+    if (!matching.length) {
       return res.status(400).json({
         message: `You do not have enough ingredients to use this recipe. Missing: ${ingredient.name}.`,
       });
     }
 
-    const requiredQuantity = Number(ingredient.quantity ?? 0);
-    const currentQuantity = Number(item.quantity ?? 0);
+    let remaining = Number(ingredient.quantity ?? 0);
+    const total = matching.reduce((sum, candidate) => sum + Number(candidate.quantity ?? 0), 0);
 
-    if (currentQuantity < requiredQuantity) {
+    if (total < remaining) {
       return res.status(400).json({
         message: `You do not have enough ${ingredient.name}.`,
       });
     }
 
-    updates.push({
-      id: item.id,
-      quantity: currentQuantity - requiredQuantity,
-    });
+    for (const item of matching) {
+      if (remaining <= 0) break;
+      const current = Number(item.quantity ?? 0);
+      const taken = Math.min(current, remaining);
+      remaining -= taken;
+      updates.push({ id: item.id, quantity: current - taken });
+    }
   }
 
   for (const update of updates) {

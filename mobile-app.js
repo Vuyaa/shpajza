@@ -269,6 +269,8 @@ const reminderToggle = document.getElementById('reminders-enabled');
 const lowStockToggle = document.getElementById('low-stock-alert');
 const themeSelect = document.getElementById('theme-select');
 const refreshMatchesBtn = document.getElementById('refresh-matches-btn');
+const aiSuggestBtn = document.getElementById('ai-suggest-btn');
+const installAppBtn = document.getElementById('install-app-btn');
 
 const inventoryModal = document.getElementById('inventory-modal');
 const inventoryForm = document.getElementById('inventory-form');
@@ -403,6 +405,71 @@ const renderMatches = () => {
   }).join('');
 };
 
+const renderAiSuggestion = (suggestion = null) => {
+  const output = document.getElementById('ai-suggestion-output');
+  if (!output) {
+    return;
+  }
+
+  if (!suggestion) {
+    output.textContent = 'Upiši ili generiraj prijedlog recepata po namirnicama koje trenutno imaš.';
+    return;
+  }
+
+  const ingredientsText = (suggestion.ingredients || [])
+    .map((ingredient) => `${ingredient.name} ${ingredient.quantity || 1}${ingredient.unit || 'kom'}`)
+    .join(', ') || 'Nema detalja o sastojcima.';
+
+  output.innerHTML = `
+    <strong>${suggestion.title || 'Predloženi recept'}</strong><br />
+    <span>${suggestion.description || 'Predloženo na temelju inventara.'}</span><br /><br />
+    <strong>Sastojci:</strong> ${ingredientsText}<br />
+    <strong>Razlog:</strong> ${suggestion.reason || 'Najbolje odgovara vašem inventaru.'}<br />
+    <strong>Vjerojatnost:</strong> ${suggestion.confidence || 85}%<br /><br />
+    <strong>Upute:</strong><br />${suggestion.instructions || 'Prilagodite količine prema inventaru.'}
+  `;
+};
+
+const suggestAiRecipe = async () => {
+  const output = document.getElementById('ai-suggestion-output');
+  const button = document.getElementById('ai-suggest-btn');
+
+  if (!output || !button) {
+    return;
+  }
+
+  button.disabled = true;
+  output.textContent = 'Generiram preporuku...';
+
+  try {
+    const data = await fetchJson(`${API_BASE}/api/recipes/ai-suggest`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        prompt: `Predloži jedan praktičan recept pomoću ovih namirnica: ${inventoryData.map((item) => `${item.name} ${item.quantityValue || 1} ${item.unit || 'kom'}`).join(', ') || 'nema namirnica'}`,
+      })
+    });
+
+    renderAiSuggestion(data.suggestion || null);
+  } catch (error) {
+    console.warn('AI suggestion unavailable:', error.message);
+    renderAiSuggestion({
+      title: 'Fallback recept',
+      description: 'AI model trenutno nije dostupan, ali imamo lokalni prijedlog.',
+      ingredients: inventoryData.slice(0, 3).map((item) => ({
+        name: item.name,
+        quantity: 1,
+        unit: item.unit || 'kom',
+      })),
+      instructions: 'Pokušajte napraviti jednostavno jelo od dostupnih namirnica.',
+      confidence: 50,
+      reason: 'Korišten je lokalni fallback zbog nedostupnog AI servisa.',
+    });
+  } finally {
+    button.disabled = false;
+  }
+};
+
 const tabs = document.querySelectorAll('.tab');
 const panels = document.querySelectorAll('.panel');
 const navItems = document.querySelectorAll('.nav-item');
@@ -534,6 +601,35 @@ refreshMatchesBtn?.addEventListener('click', () => {
     searchInput.focus();
   }
 });
+
+if (aiSuggestBtn) {
+  aiSuggestBtn.addEventListener('click', suggestAiRecipe);
+}
+
+let deferredInstallPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+
+  if (installAppBtn) {
+    installAppBtn.classList.remove('hidden');
+  }
+});
+
+if (installAppBtn) {
+  installAppBtn.addEventListener('click', async () => {
+    if (!deferredInstallPrompt) {
+      alert('Instalacija nije dostupna u ovom pregledniku. Otvorite aplikaciju preko localhost:8080 i ponovno pokušajte.');
+      return;
+    }
+
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    installAppBtn.classList.add('hidden');
+  });
+}
 
 inventoryForm?.addEventListener('submit', async (event) => {
   event.preventDefault();

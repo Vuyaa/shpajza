@@ -427,6 +427,63 @@ h1 {
   border: 1px solid rgba(92, 142, 207, 0.12);
 }
 
+.ai-card {
+  background: linear-gradient(135deg, #f6faff, #edf4ff);
+  border: 1px solid rgba(92, 142, 207, 0.14);
+  border-radius: 18px;
+  padding: 12px;
+  margin-bottom: 16px;
+  box-shadow: 0 8px 18px rgba(19, 39, 31, 0.05);
+}
+
+.ai-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.ai-label {
+  color: var(--muted);
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+
+.ai-card h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.ai-output {
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: var(--text);
+  line-height: 1.5;
+  font-size: 0.82rem;
+  white-space: pre-line;
+}
+
+.install-button {
+  position: fixed;
+  bottom: 18px;
+  right: 18px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--primary), #7aa9e6);
+  color: white;
+  padding: 12px 18px;
+  font-weight: 700;
+  box-shadow: 0 18px 24px rgba(92, 142, 207, 0.2);
+}
+
+.install-button.hidden {
+  display: none;
+}
+
 .match-card.ready {
   background: linear-gradient(135deg, #f4f9ff, #ffffff);
 }

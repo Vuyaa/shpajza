@@ -1,0 +1,17 @@
+{
+  "name": "Shpajza",
+  "short_name": "Shpajza",
+  "description": "Inventar, recepti i preporuke za namirnice.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#edf5ff",
+  "theme_color": "#5c8ecf",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "media/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

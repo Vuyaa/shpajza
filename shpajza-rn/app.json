@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "Shpajza",
+    "slug": "shpajza",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "android": {
+      "package": "com.shpajza.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#F8FAFC"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.shpajza.app"
+    },
+    "plugins": [
+      "expo-asset",
+      "expo-status-bar"
+    ]
+  }
+}

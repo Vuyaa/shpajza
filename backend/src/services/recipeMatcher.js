@@ -7,9 +7,11 @@ const buildInventoryMap = (inventoryItems = []) => {
     const key = normalizeName(item.name);
     const quantity = Number(item.quantity ?? 0);
 
+    const existing = map.get(key);
+
     map.set(key, {
-      ...item,
-      quantity: Number.isFinite(quantity) ? quantity : 0,
+      ...(existing || item),
+      quantity: (existing ? existing.quantity : 0) + (Number.isFinite(quantity) ? quantity : 0),
     });
   }
 

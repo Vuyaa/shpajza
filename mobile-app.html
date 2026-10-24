@@ -3,7 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#5c8ecf" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <title>Shpajza | Mobilna aplikacija</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="media/icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="mobile-app.css" />
     <script>
       if (!localStorage.getItem('shpajzaToken')) {
@@ -73,6 +78,20 @@
               <h2>Što možete napraviti</h2>
               <button class="pill-button secondary" id="refresh-matches-btn" type="button">Ažurirano</button>
             </div>
+
+            <div class="ai-card" id="ai-suggestion-card">
+              <div class="ai-header">
+                <div>
+                  <div class="ai-label">AI recept</div>
+                  <h3>Predlog na temelju inventara</h3>
+                </div>
+                <button class="pill-button secondary" id="ai-suggest-btn" type="button">Generiraj</button>
+              </div>
+              <div id="ai-suggestion-output" class="ai-output">
+                Upiši ili generiraj prijedlog recepata po namirnicama koje trenutno imaš.
+              </div>
+            </div>
+
             <div id="matches-list" class="stack"></div>
           </section>
 
@@ -102,6 +121,8 @@
         <button class="nav-item" type="button" data-view="profile">👤<span>Profil</span></button>
       </nav>
     </div>
+
+    <button id="install-app-btn" class="install-button hidden" type="button">Instaliraj aplikaciju</button>
 
     <div class="modal hidden" id="inventory-modal" aria-hidden="true">
       <div class="modal-card">
@@ -234,6 +255,15 @@
     </div>
 
     <script src="recipe-utils.js"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js').catch((error) => {
+            console.warn('Service worker registration failed:', error);
+          });
+        });
+      }
+    </script>
     <script src="mobile-app.js"></script>
   </body>
 </html>
