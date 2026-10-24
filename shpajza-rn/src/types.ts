@@ -4,7 +4,8 @@ export type InventoryItem = {
   quantity: number;
   unit: string;
   expiryDate: string | null;
-};
+  frozen?: boolean;
+}; 
 
 export type RecipeIngredient = {
   name: string;

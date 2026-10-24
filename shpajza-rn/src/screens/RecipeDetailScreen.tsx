@@ -96,10 +96,10 @@ export default function RecipeDetailScreen({ navigation, route, onLogout }: Prop
     if (!recipe) return [];
     return recipe.ingredients.map((ingredient) => {
       const key = ingredient.name.trim().toLowerCase();
-      const available = inventory
-        .filter((item) => item.name.trim().toLowerCase() === key)
-        .reduce((sum, item) => sum + convertQuantity(item.quantity, item.unit, ingredient.unit), 0);
-      return { ingredient, available, missing: Math.max(0, ingredient.quantity - available) };
+      const matching = inventory.filter((item) => item.name.trim().toLowerCase() === key);
+      const available = matching.reduce((sum, item) => sum + convertQuantity(item.quantity, item.unit, ingredient.unit), 0);
+      const frozen = matching.some((item) => item.frozen);
+      return { ingredient, available, frozen, missing: Math.max(0, ingredient.quantity - available) };
     });
   }, [recipe, inventory]);
 
@@ -458,7 +458,7 @@ export default function RecipeDetailScreen({ navigation, route, onLogout }: Prop
         {!recipe.editable && <Text style={[styles.meta, { marginTop: 4 }]}>Zadani recept — izmjene se spremaju kao tvoja kopija.</Text>}
 
         <Text style={styles.sectionTitle}>Sastojci</Text>
-        {rows.map(({ ingredient, available, missing }, index) => {
+        {rows.map(({ ingredient, available, missing, frozen }, index) => {
           const ok = missing === 0;
           return (
             <Pressable
@@ -473,6 +473,9 @@ export default function RecipeDetailScreen({ navigation, route, onLogout }: Prop
                 </Text>
               </View>
               <Text style={styles.meta}>Imate: {round(available)} {ingredient.unit}</Text>
+              {frozen ? (
+                <Text style={{ color: colors.primary, fontWeight: '700', marginTop: 2 }}>❄️ Smrznuto – potrebno odmrzavanje</Text>
+              ) : null}
               <Text style={{ color: ok ? colors.good : colors.danger, fontWeight: '700', marginTop: 2 }}>
                 {ok ? '✓ Imate dovoljno' : `Fali: ${round(missing)} ${ingredient.unit}`}
               </Text>

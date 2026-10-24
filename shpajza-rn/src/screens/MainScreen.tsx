@@ -28,6 +28,7 @@ import {
   loadRecipes,
   loadSettings,
   saveSettings,
+  updateInventoryFrozen,
   updateInventoryQuantity,
   useRecipe
 } from '../services/api';
@@ -166,13 +167,22 @@ export default function MainScreen({ navigation, onLogout }: Props) {
   const expiringCount = inventoryView.filter(({ expiry }) => expiry.status !== 'good').length;
   const readyCount = recipesView.filter((recipe) => matchById.get(recipe.id)?.canMake).length;
 
-  const addItem = async (item: { name: string; quantity: number; unit: string; expiryDate: string }) => {
+  const addItem = async (item: { name: string; quantity: number; unit: string; expiryDate: string; frozen: boolean }) => {
     try {
       await createInventoryItem(item);
       setItemModal(false);
       await refresh();
     } catch (error) {
       handleError(error, 'Nije uspjelo spremiti sastojak.');
+    }
+  };
+
+  const toggleFrozen = async (item: InventoryItem) => {
+    try {
+      await updateInventoryFrozen(item.id, !item.frozen);
+      await refresh();
+    } catch (error) {
+      handleError(error, 'Nije uspjelo ažurirati inventar.');
     }
   };
 
@@ -298,11 +308,20 @@ export default function MainScreen({ navigation, onLogout }: Props) {
               <View style={{ flex: 1 }}>
                 <Text style={styles.itemName}>{item.name}</Text>
                 <Text style={styles.meta}>{formatQuantity(item)}</Text>
+                {item.frozen ? (
+                  <Text style={[styles.meta, { color: colors.primary, marginTop: 2 }]}>❄️ Smrznuto – potrebno odmrzavanje</Text>
+                ) : null}
               </View>
               <View style={styles.itemActions}>
                 <Text style={[styles.badge, { color: badgeColor(expiry.status), borderColor: badgeColor(expiry.status) }]}>
                   {expiry.text}
                 </Text>
+                <Pressable
+                  style={[styles.miniBtn, item.frozen ? { borderColor: colors.primary } : null]}
+                  onPress={() => toggleFrozen(item)}
+                >
+                  <Text style={styles.miniBtnText}>❄️</Text>
+                </Pressable>
                 <Pressable style={styles.miniBtn} onPress={() => increment(item)}>
                   <Text style={styles.miniBtnText}>+</Text>
                 </Pressable>

@@ -116,7 +116,8 @@ export async function loadInventory(): Promise<InventoryItem[]> {
     name: item.name,
     quantity: Number(item.quantity ?? 0),
     unit: item.unit || 'kom',
-    expiryDate: item.expiryDate || null
+    expiryDate: item.expiryDate || null,
+    frozen: Boolean(item.frozen)
   }));
 }
 
@@ -125,8 +126,13 @@ export async function createInventoryItem(item: {
   quantity: number;
   unit: string;
   expiryDate: string;
+  frozen?: boolean;
 }) {
   return requestJson('/api/inventory', { method: 'POST', body: JSON.stringify(item) });
+}
+
+export async function updateInventoryFrozen(id: string, frozen: boolean) {
+  return requestJson(`/api/inventory/${id}`, { method: 'PATCH', body: JSON.stringify({ frozen }) });
 }
 
 export async function updateInventoryQuantity(id: string, quantity: number) {

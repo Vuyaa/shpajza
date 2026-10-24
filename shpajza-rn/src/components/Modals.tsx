@@ -114,12 +114,13 @@ export function ItemModal({ visible, colors, defaultUnit, onClose, onSave }: {
   colors: Colors;
   defaultUnit: string;
   onClose: () => void;
-  onSave: (item: { name: string; quantity: number; unit: string; expiryDate: string }) => Promise<void>;
+  onSave: (item: { name: string; quantity: number; unit: string; expiryDate: string; frozen: boolean }) => Promise<void>;
 }) {
   const [name, setName] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [unit, setUnit] = useState(defaultUnit);
   const [expiry, setExpiry] = useState('');
+  const [frozen, setFrozen] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -128,6 +129,7 @@ export function ItemModal({ visible, colors, defaultUnit, onClose, onSave }: {
       setQuantity('1');
       setUnit(defaultUnit);
       setExpiry('');
+      setFrozen(false);
     }
   }, [visible, defaultUnit]);
 
@@ -150,7 +152,7 @@ export function ItemModal({ visible, colors, defaultUnit, onClose, onSave }: {
 
     setBusy(true);
     try {
-      await onSave({ name: name.trim(), quantity: amount, unit, expiryDate });
+      await onSave({ name: name.trim(), quantity: amount, unit, expiryDate, frozen });
     } finally {
       setBusy(false);
     }
@@ -176,6 +178,21 @@ export function ItemModal({ visible, colors, defaultUnit, onClose, onSave }: {
         placeholder="npr. 2026-11-30"
         autoCapitalize="none"
       />
+      <Pressable
+        onPress={() => setFrozen((value) => !value)}
+        style={{
+          borderWidth: 1,
+          borderColor: frozen ? colors.primary : colors.border,
+          borderRadius: 12,
+          padding: 12,
+          marginBottom: 12,
+          alignItems: 'center'
+        }}
+      >
+        <Text style={{ color: frozen ? colors.primary : colors.muted, fontWeight: '700' }}>
+          {frozen ? '❄️ Smrznuto (potrebno odmrzavanje)' : '❄️ Označi kao smrznuto'}
+        </Text>
+      </Pressable>
       <Actions colors={colors} onCancel={onClose} onSubmit={submit} submitText="Spremi sastojak" busy={busy} />
     </Sheet>
   );

@@ -102,6 +102,7 @@ const normalizeInventoryItem = (item) => ({
   quantity: Number(item.quantity),
   unit: item.unit,
   expiryDate: item.expiryDate ? new Date(item.expiryDate).toISOString() : null,
+  frozen: Boolean(item.frozen),
   createdAt: item.createdAt ? new Date(item.createdAt).toISOString() : null,
 });
 
@@ -400,7 +401,7 @@ app.get('/api/inventory', async (req, res) => {
 });
 
 app.post('/api/inventory', async (req, res) => {
-  const { name, quantity, unit, expiryDate } = req.body || {};
+  const { name, quantity, unit, expiryDate, frozen } = req.body || {};
   const requestUser = getRequestUser(req);
 
   if (!name || quantity === undefined || !unit) {
@@ -418,6 +419,7 @@ app.post('/api/inventory', async (req, res) => {
           quantity: Number(quantity),
           unit,
           expiryDate: expiryDate ? new Date(expiryDate) : null,
+          frozen: Boolean(frozen),
         },
       });
 
@@ -431,6 +433,7 @@ app.post('/api/inventory', async (req, res) => {
       quantity: Number(quantity),
       unit,
       expiryDate: expiryDate || null,
+      frozen: Boolean(frozen),
     };
 
     inventory.push(newItem);
@@ -444,6 +447,7 @@ app.post('/api/inventory', async (req, res) => {
     quantity: Number(quantity),
     unit,
     expiryDate: expiryDate || null,
+    frozen: Boolean(frozen),
   };
 
   inventory.push(newItem);
@@ -453,7 +457,7 @@ app.post('/api/inventory', async (req, res) => {
 
 app.patch('/api/inventory/:id', requireAuth, async (req, res) => {
   const { id } = req.params;
-  const { name, quantity, unit, expiryDate } = req.body || {};
+  const { name, quantity, unit, expiryDate, frozen } = req.body || {};
 
   if (isDbReady()) {
     const item = await prisma.inventoryItem.findUnique({ where: { id } });
@@ -469,6 +473,7 @@ app.patch('/api/inventory/:id', requireAuth, async (req, res) => {
         ...(quantity !== undefined ? { quantity: Number(quantity) } : {}),
         ...(unit !== undefined ? { unit } : {}),
         ...(expiryDate !== undefined ? { expiryDate: expiryDate ? new Date(expiryDate) : null } : {}),
+        ...(frozen !== undefined ? { frozen: Boolean(frozen) } : {}),
       },
     });
 
@@ -488,6 +493,7 @@ app.patch('/api/inventory/:id', requireAuth, async (req, res) => {
     ...(quantity !== undefined ? { quantity: Number(quantity) } : {}),
     ...(unit !== undefined ? { unit } : {}),
     ...(expiryDate !== undefined ? { expiryDate: expiryDate || null } : {}),
+    ...(frozen !== undefined ? { frozen: Boolean(frozen) } : {}),
   };
 
   return res.json({ item: normalizeInventoryItem(inventory[itemIndex]) });
