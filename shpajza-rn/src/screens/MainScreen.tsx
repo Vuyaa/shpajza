@@ -296,7 +296,7 @@ export default function MainScreen({ navigation, onLogout }: Props) {
       </View>
       {recipesView.length === 0 ? (
         <View style={styles.card}>
-          <Text style={styles.itemName}>Nema recepta</Text>
+          <Text style={styles.itemName}>Nema recepata</Text>
           <Text style={styles.meta}>Nema rezultata za ovu pretragu.</Text>
         </View>
       ) : (
