@@ -2,6 +2,20 @@ import { InventoryItem, Recipe, RecipeIngredient } from './types';
 
 export type ExpiryStatus = 'good' | 'warning' | 'danger';
 
+const UNIT_INFO: Record<string, { group: string; factor: number }> = {
+  g: { group: 'mass', factor: 1 },
+  kg: { group: 'mass', factor: 1000 },
+  ml: { group: 'volume', factor: 1 },
+  l: { group: 'volume', factor: 1000 }
+};
+
+// Pretvara količinu između g/kg i ml/l; za ostale jedinice vraća količinu nepromijenjenu.
+export const convertQuantity = (quantity: number, fromUnit: string, toUnit: string) => {
+  const from = UNIT_INFO[String(fromUnit || '').trim().toLowerCase()];
+  const to = UNIT_INFO[String(toUnit || '').trim().toLowerCase()];
+  return from && to && from.group === to.group ? (quantity * from.factor) / to.factor : quantity;
+};
+
 export function getExpiryState(expiryDate: string | null): { text: string; status: ExpiryStatus } {
   if (!expiryDate) {
     return { text: 'Bez roka', status: 'good' };

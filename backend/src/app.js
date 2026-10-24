@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const { prisma } = require('./db');
 const { findMatchingRecipes } = require('./services/recipeMatcher');
 const { generateRecipeSuggestion } = require('./services/aiRecipeService');
+const { convertQuantity } = require('./services/units');
 
 const app = express();
 const JWT_SECRET = process.env.JWT_SECRET || 'Shpajza-dev-secret';
@@ -776,7 +777,10 @@ app.post('/api/recipes/:id/use', requireAuth, async (req, res) => {
     }
 
     let remaining = Number(ingredient.quantity ?? 0);
-    const total = matching.reduce((sum, candidate) => sum + Number(candidate.quantity ?? 0), 0);
+    const total = matching.reduce(
+      (sum, candidate) => sum + convertQuantity(candidate.quantity, candidate.unit, ingredient.unit),
+      0
+    );
 
     if (total < remaining) {
       return res.status(400).json({
@@ -787,9 +791,11 @@ app.post('/api/recipes/:id/use', requireAuth, async (req, res) => {
     for (const item of matching) {
       if (remaining <= 0) break;
       const current = Number(item.quantity ?? 0);
-      const taken = Math.min(current, remaining);
-      remaining -= taken;
-      updates.push({ id: item.id, quantity: current - taken });
+      const currentInRecipeUnit = convertQuantity(current, item.unit, ingredient.unit);
+      const takenInRecipeUnit = Math.min(currentInRecipeUnit, remaining);
+      remaining -= takenInRecipeUnit;
+      const takenInItemUnit = convertQuantity(takenInRecipeUnit, ingredient.unit, item.unit);
+      updates.push({ id: item.id, quantity: Math.max(0, Math.round((current - takenInItemUnit) * 1000) / 1000) });
     }
   }
 

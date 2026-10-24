@@ -1,3 +1,5 @@
+const { convertQuantity } = require('./units');
+
 const normalizeName = (value = '') => value.trim().toLowerCase();
 
 const buildInventoryMap = (inventoryItems = []) => {
@@ -5,18 +7,17 @@ const buildInventoryMap = (inventoryItems = []) => {
 
   for (const item of inventoryItems) {
     const key = normalizeName(item.name);
-    const quantity = Number(item.quantity ?? 0);
-
-    const existing = map.get(key);
-
-    map.set(key, {
-      ...(existing || item),
-      quantity: (existing ? existing.quantity : 0) + (Number.isFinite(quantity) ? quantity : 0),
-    });
+    map.set(key, [...(map.get(key) || []), item]);
   }
 
   return map;
 };
+
+const getAvailableQuantity = (items = [], unit) =>
+  items.reduce((sum, item) => {
+    const converted = convertQuantity(item.quantity, item.unit, unit);
+    return sum + (Number.isFinite(converted) ? converted : 0);
+  }, 0);
 
 const findMatchingRecipes = (inventoryItems = [], recipes = []) => {
   const inventoryMap = buildInventoryMap(inventoryItems);
@@ -27,9 +28,9 @@ const findMatchingRecipes = (inventoryItems = [], recipes = []) => {
 
     for (const ingredient of recipe.ingredients) {
       const key = normalizeName(ingredient.name);
-      const available = inventoryMap.get(key);
+      const items = inventoryMap.get(key);
 
-      if (!available) {
+      if (!items) {
         canMake = false;
         missingIngredients.push({
           name: ingredient.name,
@@ -40,13 +41,15 @@ const findMatchingRecipes = (inventoryItems = [], recipes = []) => {
         continue;
       }
 
-      if (available.quantity < ingredient.quantity) {
+      const availableQuantity = getAvailableQuantity(items, ingredient.unit);
+
+      if (availableQuantity < ingredient.quantity) {
         canMake = false;
         missingIngredients.push({
           name: ingredient.name,
           required: ingredient.quantity,
           unit: ingredient.unit,
-          available: available.quantity,
+          available: availableQuantity,
         });
       }
     }

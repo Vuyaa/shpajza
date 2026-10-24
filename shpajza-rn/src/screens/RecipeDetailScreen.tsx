@@ -29,7 +29,7 @@ import {
 } from '../services/api';
 import { Colors, darkColors, lightColors } from '../theme';
 import { AppSettings, InventoryItem, Recipe, RecipeIngredient } from '../types';
-import { buildRecipeShareText, normalizeRecipeDescription, splitRecipeDescription } from '../utils';
+import { buildRecipeShareText, convertQuantity, normalizeRecipeDescription, splitRecipeDescription } from '../utils';
 
 type Props = {
   navigation: any;
@@ -98,7 +98,7 @@ export default function RecipeDetailScreen({ navigation, route, onLogout }: Prop
       const key = ingredient.name.trim().toLowerCase();
       const available = inventory
         .filter((item) => item.name.trim().toLowerCase() === key)
-        .reduce((sum, item) => sum + item.quantity, 0);
+        .reduce((sum, item) => sum + convertQuantity(item.quantity, item.unit, ingredient.unit), 0);
       return { ingredient, available, missing: Math.max(0, ingredient.quantity - available) };
     });
   }, [recipe, inventory]);
