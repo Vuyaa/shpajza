@@ -4,7 +4,6 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 
 const { prisma } = require('./db');
-const { inventory: initialInventory, recipes: defaultRecipes } = require('./data/mockData');
 const { findMatchingRecipes } = require('./services/recipeMatcher');
 const { generateRecipeSuggestion } = require('./services/aiRecipeService');
 
@@ -24,16 +23,8 @@ const DEFAULT_SETTINGS = {
   theme: 'light',
 };
 
-let inventory = [...initialInventory];
-let recipeStore = defaultRecipes.map((recipe, index) => ({
-  ...recipe,
-  id: recipe.id || `recipe-default-${index}`,
-  userId: null,
-  ingredients: recipe.ingredients.map((ingredient, ingredientIndex) => ({
-    id: `${recipe.id || `recipe-default-${index}`}-ingredient-${ingredientIndex}`,
-    ...ingredient,
-  })),
-}));
+let inventory = [];
+let recipeStore = [];
 let users = [];
 
 const isDbReady = () => Boolean(app.locals.dbReady);
@@ -144,47 +135,8 @@ const resolveUserSettings = (userRecord = null) => {
   return normalizeSettings(userRecord.settings || {});
 };
 
-const seedDefaultInventoryForUser = async (userId) => {
-  const seededItems = initialInventory.map((item, index) => ({
-    id: `${item.id || 'inventory'}-${userId}-${index}`,
-    userId,
-    name: item.name,
-    quantity: Number(item.quantity ?? 0),
-    unit: item.unit,
-    expiryDate: item.expiryDate || null,
-    createdAt: new Date().toISOString(),
-  }));
-
-  if (isDbReady()) {
-    const existingItems = await prisma.inventoryItem.count({ where: { userId } });
-
-    if (existingItems === 0) {
-      await prisma.inventoryItem.createMany({
-        data: seededItems.map((item) => ({
-          id: item.id,
-          userId: item.userId,
-          name: item.name,
-          quantity: Number(item.quantity),
-          unit: item.unit,
-          expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
-          createdAt: new Date(item.createdAt),
-        })),
-        skipDuplicates: true,
-      });
-    }
-
-    return listInventoryForUser(userId);
-  }
-
-  const existingUserItems = inventory.filter((item) => item.userId === userId);
-  if (existingUserItems.length === 0) {
-    inventory.push(...seededItems);
-  }
-
-  return inventory
-    .filter((item) => item.userId === userId)
-    .map(normalizeInventoryItem);
-};
+// Novi korisnici kreću s praznim inventarom (nema početnih namirnica).
+const seedDefaultInventoryForUser = async () => [];
 
 const listInventoryForUser = async (userId) => {
   if (isDbReady()) {
