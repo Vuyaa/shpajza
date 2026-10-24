@@ -47,6 +47,7 @@ export type AiSuggestion = {
   servings?: number;
   totalKcal?: number;
   kcalPerServing?: number;
+  insufficient?: boolean;
 };
 
 export type AppSettings = {

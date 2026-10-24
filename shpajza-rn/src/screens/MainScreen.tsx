@@ -258,7 +258,7 @@ export default function MainScreen({ navigation, onLogout }: Props) {
     setAiSaved(false);
     setAiLoading(true);
     try {
-      setAi(await fetchAiSuggestion({ mode, avoidTitle: regenerate ? ai?.title : undefined }));
+      setAi(await fetchAiSuggestion({ mode, avoidTitle: regenerate && !ai?.insufficient ? ai?.title : undefined }));
     } catch (error) {
       if (error instanceof AuthError) {
         onLogout();
@@ -420,11 +420,17 @@ export default function MainScreen({ navigation, onLogout }: Props) {
         </View>
         {aiLoading ? (
           <Text style={styles.meta}>Generiram preporuku...</Text>
-        ) : ai ? (
+        ) : ai?.insufficient ? (
           <View style={{ marginTop: 8 }}>
-            <Text style={styles.itemName}>{ai.title || 'Predloženi recept'}</Text>
-            <Text style={styles.meta}>{ai.description || 'Predloženo na temelju inventara.'}</Text>
-            {ai.totalKcal ? (
+            <Text style={styles.itemName}>🥲 Premalo sastojaka</Text>
+            <Text style={styles.meta}>{ai.reason || ai.description}</Text>
+            <Text style={[styles.meta, { marginTop: 6 }]}>Dodajte još namirnica u inventar ili ih stavite na popis za kupnju.</Text>
+          </View>
+        ) : ai ? (
+            <View style={{ marginTop: 8 }}>
+              <Text style={styles.itemName}>{ai.title || 'Predloženi recept'}</Text>
+              <Text style={styles.meta}>{ai.description || 'Predloženo na temelju inventara.'}</Text>
+              {ai.totalKcal ? (
               <Text style={[styles.aiLine, { color: colors.primary, fontWeight: '800' }]}>
                 🔥 Ukupno {ai.totalKcal} kcal
                 {ai.servings && ai.servings > 1 ? ` · ${ai.kcalPerServing} kcal po porciji (${ai.servings} porcije)` : ''}

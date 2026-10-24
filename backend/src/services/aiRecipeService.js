@@ -86,12 +86,13 @@ const buildFallbackSuggestion = ({ inventoryItems = [], recipes = [] } = {}) => 
 
   const bestMatch = scoredRecipes[0];
 
-  if (!bestMatch) {
+  if (!bestMatch || bestMatch.matched === 0) {
     return {
+      insufficient: true,
       title: 'Nema preporuke',
       description: 'Pokušajte dodati više namirnica u inventar.',
       ingredients: [],
-      instructions: 'Nema dovoljno dostupnih podataka za predloženi recept.',
+      instructions: '',
       confidence: 0,
       source: 'local',
       reason: 'Nema odgovarajućih sastojaka u inventaru.',
@@ -188,7 +189,27 @@ const normalizeAiSuggestion = (payload = {}) => {
   };
 };
 
+const insufficientSuggestion = (message) => ({
+  insufficient: true,
+  title: 'Premalo sastojaka',
+  description: message,
+  ingredients: [],
+  instructions: '',
+  confidence: 0,
+  source: 'ai',
+  reason: message,
+  servings: 1,
+  totalKcal: 0,
+  kcalPerServing: 0,
+});
+
+const MIN_INVENTORY_ITEMS = 3;
+
 const generateRecipeSuggestion = async ({ inventoryItems = [], recipes = [], userPrompt = '', mode = '', avoidTitle = '' } = {}) => {
+  if (inventoryItems.filter((item) => Number(item.quantity) > 0).length < MIN_INVENTORY_ITEMS) {
+    return insufficientSuggestion('U inventaru imate premalo sastojaka da bi se od njih napravilo jelo. Dodajte još namirnica.');
+  }
+
   const fallback = buildFallbackSuggestion({ inventoryItems, recipes });
 
   const apiKey = process.env.GROQ_API_KEY;
@@ -216,7 +237,7 @@ const generateRecipeSuggestion = async ({ inventoryItems = [], recipes = [], use
         messages: [
           {
             role: 'system',
-            content: 'Ti si kuharski asistent. Odgovaraj ISKLJUČIVO na hrvatskom jeziku i vrati samo valjan JSON s ključevima: title (naziv jela), description (kratak opis, 1-2 rečenice),             ingredients (niz objekata s name, quantity (broj), unit (jedna od: kom, g, kg, l, ml, pak, kutija, karton), kcal (UKUPNE kalorije te količine sastojka, cijeli broj, procijenjene prema uobičajenim nutritivnim vrijednostima)), servings (broj porcija), instructions (detaljne upute za pripremu, korak po korak, svaki korak u novom retku označen brojem), confidence (broj 0-100), reason (zašto je ovaj recept dobar izbor). Prvenstveno koristi namirnice koje korisnik ima; količine neka budu realne.'
+            content: 'Ti si kuharski asistent. Odgovaraj ISKLJUČIVO na hrvatskom jeziku i vrati samo valjan JSON s ključevima: title (naziv jela), description (kratak opis, 1-2 rečenice),             ingredients (niz objekata s name, quantity (broj), unit (jedna od: kom, g, kg, l, ml, pak, kutija, karton), kcal (UKUPNE kalorije te količine sastojka, cijeli broj, procijenjene prema uobičajenim nutritivnim vrijednostima)), servings (broj porcija), instructions (detaljne upute za pripremu, korak po korak, svaki korak u novom retku označen brojem), confidence (broj 0-100), reason (zašto je ovaj recept dobar izbor). Prvenstveno koristi namirnice koje korisnik ima; količine neka budu realne. VAŽNO: ne izmišljaj jela i ne forsiraj recept. Ako od dostupnih namirnica nije moguće napraviti smisleno jelo (npr. samo začini, voda, kava ili jedna namirnica), vrati samo JSON {"insufficient": true, "message": "kratko objašnjenje što nedostaje"} bez ostalih ključeva.'
           },
           {
             role: 'user',
@@ -235,6 +256,11 @@ const generateRecipeSuggestion = async ({ inventoryItems = [], recipes = [], use
     const rawContent = payload?.choices?.[0]?.message?.content || '';
     const parsed = parseJsonFromText(rawContent);
 
+    if (parsed && parsed.insufficient) {
+      return insufficientSuggestion(
+        String(parsed.message || 'Od trenutnih namirnica nije moguće napraviti smisleno jelo.')
+      );
+    }
     if (!parsed || !parsed.title) {
       return { ...fallback, source: 'local', reason: 'AI response was not valid JSON; using local fallback.' };
     }
