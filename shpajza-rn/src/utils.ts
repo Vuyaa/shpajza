@@ -16,6 +16,21 @@ export const convertQuantity = (quantity: number, fromUnit: string, toUnit: stri
   return from && to && from.group === to.group ? (quantity * from.factor) / to.factor : quantity;
 };
 
+// kcal na 100 g: ukupni kcal iz opisa / ukupna masa sastojaka (ml se računa kao g).
+export const getKcalPer100g = (
+  description: string,
+  ingredients: { quantity: number; unit: string }[]
+): number | null => {
+  const match = /Ukupno ca\. (\d+(?:[.,]\d+)?) kcal/.exec(description || '');
+  if (!match) return null;
+  const total = Number(match[1].replace(',', '.'));
+  const grams = ingredients.reduce((sum, item) => {
+    const unit = String(item.unit || '').trim().toLowerCase();
+    return UNIT_INFO[unit] ? sum + convertQuantity(item.quantity, unit, unit === 'kg' || unit === 'g' ? 'g' : 'ml') : sum;
+  }, 0);
+  return total > 0 && grams > 0 ? Math.round((total / grams) * 100) : null;
+};
+
 export function getExpiryState(expiryDate: string | null): { text: string; status: ExpiryStatus } {
   if (!expiryDate) {
     return { text: 'Bez roka', status: 'good' };

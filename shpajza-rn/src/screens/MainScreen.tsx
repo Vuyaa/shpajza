@@ -38,6 +38,7 @@ import {
   formatIngredient,
   formatQuantity,
   getExpiryState,
+  getKcalPer100g,
   normalizeRecipeDescription,
   splitRecipeDescription
 } from '../utils';
@@ -350,6 +351,11 @@ export default function MainScreen({ navigation, onLogout }: Props) {
               <Text style={[styles.meta, { marginTop: 8 }]}>
                 {recipe.ingredients.length} sastojaka · dodirni za detalje ›
               </Text>
+              {getKcalPer100g(recipe.description, recipe.ingredients) !== null ? (
+                <Text style={[styles.meta, { marginTop: 4 }]}>
+                  🔥 {getKcalPer100g(recipe.description, recipe.ingredients)} kcal na 100 g
+                </Text>
+              ) : null}
             </Pressable>
           );
         })
