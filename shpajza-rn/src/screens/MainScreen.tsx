@@ -38,6 +38,7 @@ import {
   formatIngredient,
   formatQuantity,
   getExpiryState,
+  normalizeRecipeDescription,
   splitRecipeDescription
 } from '../utils';
 
@@ -79,6 +80,8 @@ export default function MainScreen({ navigation, onLogout }: Props) {
   const [settingsModal, setSettingsModal] = useState(false);
   const [ai, setAi] = useState<AiSuggestion | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiSaving, setAiSaving] = useState(false);
+  const [aiSaved, setAiSaved] = useState(false);
   const [aiMode, setAiMode] = useState<AiMode | undefined>(undefined);
 
   const colors: Colors = settings.theme === 'dark' ? darkColors : lightColors;
@@ -200,6 +203,25 @@ export default function MainScreen({ navigation, onLogout }: Props) {
     }
   };
 
+  const saveAiRecipe = async () => {
+    if (!ai?.title || !ai.ingredients?.length) return;
+    setAiSaving(true);
+    try {
+      const kcalNote = ai.totalKcal ? `Ukupno ca. ${ai.totalKcal} kcal${ai.servings && ai.servings > 1 ? ` (${ai.kcalPerServing} kcal po porciji)` : ''}.` : '';
+      await createRecipe({
+        name: ai.title,
+        description: normalizeRecipeDescription([ai.description, kcalNote].filter(Boolean).join(' '), ai.instructions || ''),
+        ingredients: ai.ingredients.map(({ name, quantity, unit }) => ({ name, quantity, unit }))
+      });
+      setAiSaved(true);
+      await refresh();
+    } catch (error) {
+      handleError(error, 'Nije uspjelo spremiti recept.');
+    } finally {
+      setAiSaving(false);
+    }
+  };
+
   const consumeRecipe = async (recipe: Recipe) => {
     try {
       await useRecipe(recipe.id);
@@ -220,6 +242,7 @@ export default function MainScreen({ navigation, onLogout }: Props) {
 
   const generateAi = async (mode: AiMode | undefined = aiMode, regenerate = false) => {
     setAiMode(mode);
+    setAiSaved(false);
     setAiLoading(true);
     try {
       setAi(await fetchAiSuggestion({ mode, avoidTitle: regenerate ? ai?.title : undefined }));
@@ -416,9 +439,18 @@ export default function MainScreen({ navigation, onLogout }: Props) {
               <Text style={styles.bold}>Upute: </Text>
               {ai.instructions || 'Prilagodite količine prema inventaru.'}
             </Text>
+            <Pressable
+              onPress={saveAiRecipe}
+              disabled={aiSaving || aiSaved}
+              style={[styles.aiSave, { backgroundColor: aiSaved ? colors.good : colors.primary, opacity: aiSaving ? 0.6 : 1 }]}
+            >
+              <Text style={{ color: colors.onPrimary, fontWeight: '800' }}>
+                {aiSaved ? '✓ Spremljeno u moje recepte' : aiSaving ? 'Spremam...' : '💾 Spremi u moje recepte'}
+              </Text>
+            </Pressable>
           </View>
         ) : (
-          <Text style={styles.meta}>Generiraj prijedlog recepta po namirnicama koje trenutno imaš.</Text>
+          <Text style={styles.meta}>Odaberi stil ili pritisni Regeneriraj za prijedlog recepta po namirnicama koje trenutno imaš.</Text>
         )}
       </View>
 
@@ -621,6 +653,7 @@ const makeStyles = (c: Colors) =>
     aiLabel: { color: c.primary, fontWeight: '800', fontSize: 11, letterSpacing: 1 },
     aiLine: { color: c.text, marginTop: 6, lineHeight: 20 },
     aiBtn: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 },
+    aiSave: { marginTop: 12, borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
     bold: { fontWeight: '800' },
     bottomNav: { flexDirection: 'row', backgroundColor: c.card, borderTopWidth: 1, borderTopColor: c.border, paddingVertical: 8 },
     navItem: { flex: 1, alignItems: 'center' },
