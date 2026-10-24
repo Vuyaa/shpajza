@@ -1,0 +1,383 @@
+﻿<!DOCTYPE html>
+<html lang="hr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Shpajza | Login / Registracija</title>
+    <style>
+      :root {
+        --bg-top: #dfeaf8;
+        --bg-bottom: #f3f7fb;
+        --card: rgba(255, 255, 255, 0.9);
+        --card-strong: #ffffff;
+        --primary: #5c8ecf;
+        --primary-dark: #2d4f7a;
+        --primary-soft: #eaf2ff;
+        --text: #1e2d3d;
+        --muted: #5c6f84;
+        --line: rgba(92, 142, 207, 0.18);
+        --shadow: 0 22px 44px rgba(33, 60, 94, 0.12);
+      }
+
+      * { box-sizing: border-box; }
+
+      html, body {
+        margin: 0;
+        min-height: 100%;
+        font-family: Arial, Helvetica, sans-serif;
+        background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
+        color: var(--text);
+      }
+
+      body {
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .phone-shell {
+        width: min(100%, 420px);
+        min-height: 92vh;
+        background: rgba(255,255,255,0.18);
+        border-radius: 36px;
+        padding: 16px;
+        box-shadow: var(--shadow);
+      }
+
+      .auth-card {
+        height: 100%;
+        background: linear-gradient(180deg, rgba(255,255,255,0.7), rgba(255,255,255,0.92));
+        border-radius: 30px;
+        padding: 28px 20px 18px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        border: 1px solid rgba(255,255,255,0.45);
+      }
+
+      .brand {
+        text-align: center;
+        margin-bottom: 22px;
+      }
+
+      .logo-badge {
+        width: 72px;
+        height: 72px;
+        border-radius: 22px;
+        margin: 0 auto 12px;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(135deg, var(--primary), #8ab3eb);
+        color: white;
+        font-size: 1.9rem;
+        font-weight: 700;
+        box-shadow: 0 16px 28px rgba(92, 142, 207, 0.26);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(2rem, 6vw, 2.7rem);
+      }
+
+      .subtitle {
+        margin: 8px 0 0;
+        color: var(--muted);
+        text-align: center;
+        line-height: 1.5;
+        font-size: 0.95rem;
+      }
+
+      .toggle {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        background: var(--primary-soft);
+        border-radius: 16px;
+        padding: 6px;
+        margin: 24px 0 18px;
+      }
+
+      .tab {
+        border: none;
+        background: transparent;
+        color: var(--muted);
+        border-radius: 12px;
+        padding: 12px 10px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .tab.active {
+        background: white;
+        color: var(--primary-dark);
+        box-shadow: 0 8px 16px rgba(92, 142, 207, 0.08);
+      }
+
+      .form {
+        display: grid;
+        gap: 14px;
+      }
+
+      .field {
+        display: grid;
+        gap: 8px;
+      }
+
+      .field label {
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: var(--muted);
+      }
+
+      .field input {
+        width: 100%;
+        border: 1px solid var(--line);
+        background: rgba(255,255,255,0.8);
+        border-radius: 14px;
+        padding: 15px 14px;
+        font-size: 1rem;
+        outline: none;
+        color: var(--text);
+      }
+
+      .field input:focus {
+        border-color: rgba(92, 142, 207, 0.6);
+        box-shadow: 0 0 0 4px rgba(92, 142, 207, 0.08);
+      }
+
+      .meta-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+
+      .remember {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .remember input {
+        width: 16px;
+        height: 16px;
+      }
+
+      .link-btn {
+        border: none;
+        background: transparent;
+        color: var(--primary-dark);
+        font-weight: 700;
+        padding: 0;
+        cursor: pointer;
+      }
+
+      .submit-btn {
+        margin-top: 8px;
+        border: none;
+        border-radius: 16px;
+        padding: 16px 18px;
+        background: linear-gradient(135deg, var(--primary), #7aa9e6);
+        color: white;
+        font-size: 1rem;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        cursor: pointer;
+        box-shadow: 0 18px 28px rgba(92, 142, 207, 0.2);
+      }
+
+      .switch-copy {
+        margin-top: 18px;
+        text-align: center;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .switch-copy button {
+        background: none;
+        border: none;
+        color: var(--primary-dark);
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="phone-shell">
+      <div class="auth-card">
+        <div class="brand">
+          <div class="logo-badge">K</div>
+          <h1>Shpajza</h1>
+          <p class="subtitle">Upravljaj namirnicama, rokovima i receptima u jednome mjestu.</p>
+        </div>
+
+        <div class="toggle" aria-label="Prijava ili registracija">
+          <button class="tab active" type="button" data-mode="login">Prijava</button>
+          <button class="tab" type="button" data-mode="register">Registracija</button>
+        </div>
+
+        <form class="form" id="auth-form">
+          <div class="field hidden" id="name-field">
+            <label for="name">Ime i prezime</label>
+            <input id="name" name="name" type="text" placeholder="Unesite ime" />
+          </div>
+
+          <div class="field">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" placeholder="you@example.com" />
+          </div>
+
+          <div class="field">
+            <label for="password">Lozinka</label>
+            <input id="password" name="password" type="password" placeholder="••••••••" />
+          </div>
+
+          <div class="field hidden" id="confirm-field">
+            <label for="confirmPassword">Potvrdi lozinku</label>
+            <input id="confirmPassword" name="confirmPassword" type="password" placeholder="Ponovno unesite lozinku" />
+          </div>
+
+          <div class="meta-row login-only">
+            <label class="remember">
+              <input type="checkbox" />
+              <span>Zapamti me</span>
+            </label>
+            <button type="button" class="link-btn">Zaboravili ste lozinku?</button>
+          </div>
+
+          <button class="submit-btn" type="submit" id="submit-btn">Prijavi se</button>
+          <button type="button" class="link-btn" id="clear-session-btn" style="align-self:center; margin-top:4px;">Demo: nisam prijavljen</button>
+        </form>
+
+        <div class="switch-copy">
+          <span id="switch-text">Nemaš račun?</span>
+          <button type="button" id="switch-mode-btn">Registriraj se</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const API_BASE = 'http://localhost:4000';
+      const tabs = document.querySelectorAll('.tab');
+      const form = document.getElementById('auth-form');
+      const nameField = document.getElementById('name-field');
+      const confirmField = document.getElementById('confirm-field');
+      const submitBtn = document.getElementById('submit-btn');
+      const switchModeBtn = document.getElementById('switch-mode-btn');
+      const switchText = document.getElementById('switch-text');
+      const loginOnly = document.querySelector('.login-only');
+      const clearSessionBtn = document.getElementById('clear-session-btn');
+      let mode = 'login';
+
+      const forceGuestMode = new URLSearchParams(window.location.search).get('demo') === 'guest';
+      if (forceGuestMode) {
+        localStorage.removeItem('shpajzaToken');
+        localStorage.removeItem('shpajzaUser');
+      }
+
+      if (localStorage.getItem('shpajzaToken') && !forceGuestMode) {
+        window.location.replace('mobile-app.html');
+      }
+
+      const setMode = (nextMode) => {
+        mode = nextMode;
+
+        tabs.forEach((tab) => {
+          tab.classList.toggle('active', tab.dataset.mode === nextMode);
+        });
+
+        const isRegister = nextMode === 'register';
+        nameField.classList.toggle('hidden', !isRegister);
+        confirmField.classList.toggle('hidden', !isRegister);
+        loginOnly.classList.toggle('hidden', isRegister);
+
+        submitBtn.textContent = isRegister ? 'Registriraj se' : 'Prijavi se';
+        switchText.textContent = isRegister ? 'Već imaš račun?' : 'Nemaš račun?';
+        switchModeBtn.textContent = isRegister ? 'Prijavi se' : 'Registriraj se';
+      };
+
+      tabs.forEach((tab) => {
+        tab.addEventListener('click', () => setMode(tab.dataset.mode));
+      });
+
+      switchModeBtn.addEventListener('click', () => {
+        setMode(mode === 'login' ? 'register' : 'login');
+      });
+
+      clearSessionBtn.addEventListener('click', () => {
+        localStorage.removeItem('shpajzaToken');
+        localStorage.removeItem('shpajzaUser');
+        window.location.href = 'auth-view.html?demo=guest';
+      });
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        const fields = {
+          name: document.getElementById('name').value.trim(),
+          email: document.getElementById('email').value.trim(),
+          password: document.getElementById('password').value,
+          confirmPassword: document.getElementById('confirmPassword').value
+        };
+
+        if (mode === 'register' && (!fields.name || !fields.confirmPassword)) {
+          alert('Popunite sva polja za registraciju.');
+          return;
+        }
+
+        if (fields.password.length < 6) {
+          alert('Lozinka mora imati najmanje 6 znakova.');
+          return;
+        }
+
+        if (mode === 'register' && fields.password !== fields.confirmPassword) {
+          alert('Lozinke se ne podudaraju.');
+          return;
+        }
+
+        const endpoint = mode === 'register' ? '/api/auth/register' : '/api/auth/login';
+        const payload = mode === 'register'
+          ? { name: fields.name, email: fields.email, password: fields.password }
+          : { email: fields.email, password: fields.password };
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = mode === 'register' ? 'Registriranje...' : 'Prijava...';
+
+        try {
+          const response = await fetch(`${API_BASE}${endpoint}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.message || 'Neuspješna prijava.');
+          }
+
+          localStorage.setItem('shpajzaToken', data.token);
+          localStorage.setItem('shpajzaUser', JSON.stringify(data.user));
+          window.location.href = 'mobile-app.html';
+        } catch (error) {
+          alert(error.message || 'Došlo je do pogreške.');
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = mode === 'register' ? 'Registriraj se' : 'Prijavi se';
+        }
+      });
+
+      setMode('login');
+    </script>
+  </body>
+</html>
+

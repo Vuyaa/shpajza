@@ -1,0 +1,240 @@
+﻿<!DOCTYPE html>
+<html lang="hr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Shpajza | Mobilna aplikacija</title>
+    <link rel="stylesheet" href="mobile-app.css" />
+    <script>
+      if (!localStorage.getItem('shpajzaToken')) {
+        window.location.replace('auth-view.html');
+      }
+    </script>
+  </head>
+  <body>
+    <div class="phone-shell">
+      <div class="app-window">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Zdravo, Bruno</p>
+            <h1>Shpajza</h1>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <button class="icon-btn" id="settings-btn" type="button" aria-label="Postavke" title="Postavke">⚙️</button>
+            <button class="icon-btn" id="logout-btn" type="button" aria-label="Odjavi se" title="Odjavi se">⎋</button>
+          </div>
+        </header>
+
+        <section class="summary-grid">
+          <article class="summary-card accent">
+            <span class="label">Namirnice</span>
+            <strong id="inventory-count">0</strong>
+          </article>
+          <article class="summary-card">
+            <span class="label">Ističe</span>
+            <strong id="expiring-count">0</strong>
+          </article>
+          <article class="summary-card">
+            <span class="label">Gotovi recepti</span>
+            <strong id="ready-count">0</strong>
+          </article>
+        </section>
+
+        <section class="search-card">
+          <span class="search-icon">•</span>
+          <input type="text" placeholder="Pretraži namirnice i recepte" aria-label="Pretraži" />
+        </section>
+
+        <nav class="view-switcher" aria-label="Navigacija aplikacije">
+          <button class="tab active" data-view="inventory" type="button">Inventar</button>
+          <button class="tab" data-view="recipes" type="button">Recepti</button>
+          <button class="tab" data-view="matches" type="button">Usklađeno</button>
+        </nav>
+
+        <main>
+          <section class="panel active" id="inventory-panel" aria-live="polite">
+            <div class="panel-header">
+              <h2>Moje namirnice</h2>
+              <button class="pill-button" id="add-item-btn" type="button">+ Dodaj</button>
+            </div>
+            <div id="inventory-list" class="stack"></div>
+          </section>
+
+          <section class="panel" id="recipes-panel" aria-live="polite">
+            <div class="panel-header">
+              <h2>Preporučeni recepti</h2>
+              <button class="pill-button" id="add-recipe-btn" type="button">+ Recept</button>
+            </div>
+            <div id="recipes-list" class="stack"></div>
+          </section>
+
+          <section class="panel" id="matches-panel" aria-live="polite">
+            <div class="panel-header">
+              <h2>Što možete napraviti</h2>
+              <button class="pill-button secondary" id="refresh-matches-btn" type="button">Ažurirano</button>
+            </div>
+            <div id="matches-list" class="stack"></div>
+          </section>
+
+          <section class="panel" id="profile-panel" aria-live="polite">
+            <div class="panel-header">
+              <h2>Profil</h2>
+            </div>
+            <div class="stack">
+              <article class="item-card">
+                <div class="item-name" id="profile-name">Korisnik</div>
+                <div class="item-meta" id="profile-email">email@example.com</div>
+              </article>
+              <article class="item-card">
+                <div class="item-name">Uloga</div>
+                <div class="item-meta">Korisnik aplikacije</div>
+              </article>
+              <button class="pill-button" id="profile-logout-btn" type="button">Odjavi se</button>
+            </div>
+          </section>
+        </main>
+      </div>
+
+      <nav class="bottom-nav" aria-label="Donja navigacija">
+        <button class="nav-item active" type="button" data-view="home">🏠<span>Početna</span></button>
+        <button class="nav-item" type="button" data-view="inventory">📦<span>Inventar</span></button>
+        <button class="nav-item" type="button" data-view="recipes">🍽️<span>Recepti</span></button>
+        <button class="nav-item" type="button" data-view="profile">👤<span>Profil</span></button>
+      </nav>
+    </div>
+
+    <div class="modal hidden" id="inventory-modal" aria-hidden="true">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>Novi sastojak</h3>
+          <button type="button" class="icon-btn modal-close" id="close-inventory-modal" aria-label="Zatvori">✕</button>
+        </div>
+
+        <form id="inventory-form">
+          <div class="field-group">
+            <label for="inventory-name">Naziv namirnice</label>
+            <input id="inventory-name" name="inventory-name" type="text" placeholder="npr. Jaja" />
+          </div>
+
+          <div class="field-row">
+            <div class="field-group">
+              <label for="inventory-quantity">Količina</label>
+              <input id="inventory-quantity" name="inventory-quantity" type="number" min="0" step="0.1" value="1" />
+            </div>
+
+            <div class="field-group">
+              <label for="inventory-unit">Jedinica</label>
+              <select id="inventory-unit" name="inventory-unit">
+                <option value="kom">kom</option>
+                <option value="g">g</option>
+                <option value="kg">kg</option>
+                <option value="l">l</option>
+                <option value="ml">ml</option>
+                <option value="pak">pak</option>
+                <option value="kutija">kutija</option>
+                <option value="karton">karton</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label for="inventory-expiry">Rok trajanja</label>
+            <input id="inventory-expiry" name="inventory-expiry" type="date" />
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="pill-button secondary" id="cancel-inventory-btn">Odustani</button>
+            <button type="submit" class="pill-button">Spremi sastojak</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="recipe-modal" aria-hidden="true">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>Novi recept</h3>
+          <button type="button" class="icon-btn modal-close" id="close-recipe-modal" aria-label="Zatvori">✕</button>
+        </div>
+
+        <form id="recipe-form">
+          <div class="field-group">
+            <label for="recipe-name">Naziv recepta</label>
+            <input id="recipe-name" name="recipe-name" type="text" placeholder="npr. Pita od jabuka" />
+          </div>
+
+          <div class="field-group">
+            <label for="recipe-description">Kratki opis</label>
+            <textarea id="recipe-description" name="recipe-description" rows="2" placeholder="Kratko opišite recept..."></textarea>
+          </div>
+
+          <div class="field-group">
+            <label for="recipe-instructions">Cijeli recept / upute</label>
+            <textarea id="recipe-instructions" name="recipe-instructions" rows="5" placeholder="Napišite cijeli recept: što, kako i koliko..."></textarea>
+          </div>
+
+          <div class="field-group">
+            <label for="recipe-ingredients">Sastojci</label>
+            <input id="recipe-ingredients" name="recipe-ingredients" type="text" placeholder="Jaja, Sir, Sol" />
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="pill-button secondary" id="cancel-recipe-btn">Odustani</button>
+            <button type="submit" class="pill-button">Spremi recept</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="settings-modal" aria-hidden="true">
+      <div class="modal-card settings-card">
+        <div class="modal-header">
+          <h3>Postavke</h3>
+          <button type="button" class="icon-btn modal-close" id="close-settings-modal" aria-label="Zatvori">✕</button>
+        </div>
+
+        <form id="settings-form">
+          <div class="field-group">
+            <label for="default-unit">Standardna jedinica</label>
+            <select id="default-unit" name="default-unit">
+              <option value="kom">Komadi</option>
+              <option value="g">Grami</option>
+              <option value="kg">Kilogrami</option>
+              <option value="l">Litri</option>
+              <option value="ml">Mililitri</option>
+              <option value="pak">Paketi</option>
+              <option value="kutija">Kutije</option>
+            </select>
+          </div>
+
+          <div class="field-group toggle-row">
+            <label for="reminders-enabled">Podsjetnici za isteknuće</label>
+            <input id="reminders-enabled" name="reminders-enabled" type="checkbox" checked />
+          </div>
+
+          <div class="field-group toggle-row">
+            <label for="low-stock-alert">Upozorenje za niske zalihe</label>
+            <input id="low-stock-alert" name="low-stock-alert" type="checkbox" checked />
+          </div>
+
+          <div class="field-group">
+            <label for="theme-select">Tema</label>
+            <select id="theme-select" name="theme-select">
+              <option value="light">Svijetla</option>
+              <option value="dark">Tamna</option>
+            </select>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="pill-button secondary" id="cancel-settings-btn">Odustani</button>
+            <button type="submit" class="pill-button">Spremi postavke</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script src="recipe-utils.js"></script>
+    <script src="mobile-app.js"></script>
+  </body>
+</html>
+

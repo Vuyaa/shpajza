@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <rect width="1280" height="720" fill="#07110d"/>
+  <rect x="60" y="60" width="1160" height="600" rx="32" fill="#13261e" stroke="#6ee7b7" stroke-width="4"/>
+  <circle cx="640" cy="360" r="120" fill="#6ee7b7" opacity="0.18"/>
+  <path d="M610 290 L740 360 L610 430 Z" fill="#6ee7b7"/>
+  <text x="640" y="280" text-anchor="middle" font-family="Arial, sans-serif" font-size="36" fill="#f5fbf8">synCRO</text>
+  <text x="640" y="330" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" fill="#aec7b7">Video prikaz sustava</text>
+  <text x="640" y="520" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" fill="#6ee7b7">Kliknite za otvaranje videa</text>
+</svg>
