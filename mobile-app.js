@@ -24,7 +24,7 @@ const buildRecipeShareText = recipeUtils.buildRecipeShareText || ((recipe = {}) 
   return instructions ? `${recipeName}\n\n${shareSummary}\n\nUpute:\n${instructions}` : `${recipeName}\n\n${shareSummary}`;
 });
 
-const API_BASE = 'http://localhost:4000';
+const API_BASE = 'https://shpajza.onrender.com';
 const token = localStorage.getItem('shpajzaToken');
 const savedUser = JSON.parse(localStorage.getItem('shpajzaUser') || '{}');
 
