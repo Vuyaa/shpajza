@@ -1,4 +1,4 @@
-const DEFAULT_MODEL = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.1-8b-instruct:free';
+const DEFAULT_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
 
 const normalizeIngredientName = (value = '') => String(value || '')
   .trim()
@@ -171,11 +171,11 @@ const normalizeAiSuggestion = (payload = {}) => {
 const generateRecipeSuggestion = async ({ inventoryItems = [], recipes = [], userPrompt = '' } = {}) => {
   const fallback = buildFallbackSuggestion({ inventoryItems, recipes });
 
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     return {
       ...fallback,
-      reason: fallback.reason || 'OpenRouter API key not configured. Returning local suggestion.',
+      reason: fallback.reason || 'Groq API key not configured. Returning local suggestion.',
     };
   }
 
@@ -184,24 +184,23 @@ const generateRecipeSuggestion = async ({ inventoryItems = [], recipes = [], use
       ? inventoryItems.map((item) => `${item.name} ${item.quantity ?? 1} ${item.unit || 'kom'}`).join(', ')
       : 'Nema nijedne namirnice.';
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'http://localhost:4000',
-        'X-Title': 'Shpajza',
       },
       body: JSON.stringify({
-        model: process.env.OPENROUTER_MODEL || DEFAULT_MODEL,
+        model: DEFAULT_MODEL,
+        response_format: { type: 'json_object' },
         messages: [
           {
             role: 'system',
-            content: 'You are a helpful cooking assistant. Return valid JSON only with keys: title, description, ingredients (array of objects with name, quantity, unit), instructions, confidence, reason. Use ingredients that the user has available.'
+            content: 'Ti si kuharski asistent. Odgovaraj ISKLJUČIVO na hrvatskom jeziku i vrati samo valjan JSON s ključevima: title (naziv jela), description (kratak opis, 1-2 rečenice), ingredients (niz objekata s name, quantity (broj), unit (jedna od: kom, g, kg, l, ml, pak, kutija, karton)), instructions (detaljne upute za pripremu, korak po korak, svaki korak u novom retku označen brojem), confidence (broj 0-100), reason (zašto je ovaj recept dobar izbor). Prvenstveno koristi namirnice koje korisnik ima; količine neka budu realne.'
           },
           {
             role: 'user',
-            content: `I have these ingredients: ${inventorySummary}. User request: ${userPrompt || 'Suggest one practical recipe to make with what I have.'} Return only JSON.`
+            content: `Imam ove namirnice: ${inventorySummary}. Zahtjev: ${userPrompt || 'Predloži jedan praktičan recept od onoga što imam.'}`
           }
         ],
         temperature: 0.7,
@@ -209,7 +208,7 @@ const generateRecipeSuggestion = async ({ inventoryItems = [], recipes = [], use
     });
 
     if (!response.ok) {
-      throw new Error(`OpenRouter error: ${response.status}`);
+      throw new Error(`Groq error: ${response.status}`);
     }
 
     const payload = await response.json();
