@@ -523,6 +523,121 @@ app.delete('/api/inventory/:id', requireAuth, async (req, res) => {
   return res.json({ deleted: true, id });
 });
 
+const normalizeShoppingItem = (item) => ({
+  id: item.id,
+  name: item.name,
+  quantity: Number(item.quantity),
+  unit: item.unit,
+  checked: Boolean(item.checked),
+});
+
+const requireDb = (req, res, next) => {
+  if (!isDbReady()) {
+    return res.status(503).json({ message: 'Popis za kupnju zahtijeva bazu podataka.' });
+  }
+  return next();
+};
+
+app.get('/api/shopping', requireAuth, requireDb, async (req, res) => {
+  const rows = await prisma.shoppingItem.findMany({
+    where: { userId: req.user.id },
+    orderBy: { createdAt: 'asc' },
+  });
+  return res.json({ items: rows.map(normalizeShoppingItem) });
+});
+
+app.post('/api/shopping', requireAuth, requireDb, async (req, res) => {
+  const { name, quantity, unit } = req.body || {};
+
+  if (!name || !String(name).trim() || !unit) {
+    return res.status(400).json({ message: 'Name and unit are required.' });
+  }
+
+  const item = await prisma.shoppingItem.create({
+    data: {
+      userId: req.user.id,
+      name: String(name).trim(),
+      quantity: Number(quantity) > 0 ? Number(quantity) : 1,
+      unit,
+    },
+  });
+
+  return res.status(201).json({ item: normalizeShoppingItem(item) });
+});
+
+// Dodaje više stavki odjednom (npr. sastojke koji nedostaju); spaja s postojećim istog naziva i jedinice.
+app.post('/api/shopping/bulk', requireAuth, requireDb, async (req, res) => {
+  const incoming = Array.isArray(req.body?.items) ? req.body.items : [];
+  let added = 0;
+
+  for (const entry of incoming) {
+    const name = String(entry?.name || '').trim();
+    const quantity = Number(entry?.quantity);
+    if (!name || !entry.unit || !(quantity > 0)) continue;
+
+    const existing = await prisma.shoppingItem.findFirst({
+      where: { userId: req.user.id, unit: entry.unit, checked: false, name: { equals: name, mode: 'insensitive' } },
+    });
+
+    if (existing) {
+      await prisma.shoppingItem.update({ where: { id: existing.id }, data: { quantity: existing.quantity + quantity } });
+    } else {
+      await prisma.shoppingItem.create({ data: { userId: req.user.id, name, quantity, unit: entry.unit } });
+    }
+    added += 1;
+  }
+
+  return res.status(201).json({ added });
+});
+
+app.patch('/api/shopping/:id', requireAuth, requireDb, async (req, res) => {
+  const { id } = req.params;
+  const { name, quantity, unit, checked } = req.body || {};
+  const item = await prisma.shoppingItem.findUnique({ where: { id } });
+
+  if (!item || item.userId !== req.user.id) {
+    return res.status(404).json({ message: 'Shopping item not found.' });
+  }
+
+  const updated = await prisma.shoppingItem.update({
+    where: { id },
+    data: {
+      ...(name !== undefined ? { name } : {}),
+      ...(quantity !== undefined ? { quantity: Number(quantity) } : {}),
+      ...(unit !== undefined ? { unit } : {}),
+      ...(checked !== undefined ? { checked: Boolean(checked) } : {}),
+    },
+  });
+
+  return res.json({ item: normalizeShoppingItem(updated) });
+});
+
+app.delete('/api/shopping/:id', requireAuth, requireDb, async (req, res) => {
+  const { id } = req.params;
+  const item = await prisma.shoppingItem.findUnique({ where: { id } });
+
+  if (!item || item.userId !== req.user.id) {
+    return res.status(404).json({ message: 'Shopping item not found.' });
+  }
+
+  await prisma.shoppingItem.delete({ where: { id } });
+  return res.json({ deleted: true, id });
+});
+
+// Označene (kupljene) stavke prelaze u inventar.
+app.post('/api/shopping/move-checked', requireAuth, requireDb, async (req, res) => {
+  const checked = await prisma.shoppingItem.findMany({ where: { userId: req.user.id, checked: true } });
+
+  for (const item of checked) {
+    await prisma.inventoryItem.create({
+      data: { userId: req.user.id, name: item.name, quantity: item.quantity, unit: item.unit, expiryDate: null },
+    });
+  }
+
+  await prisma.shoppingItem.deleteMany({ where: { userId: req.user.id, checked: true } });
+  return res.json({ moved: checked.length });
+});
+
 app.get('/api/settings', requireAuth, async (req, res) => {
   const userRecord = isDbReady()
     ? await prisma.user.findUnique({ where: { id: req.user.id }, select: { settings: true } })

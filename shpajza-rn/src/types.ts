@@ -7,6 +7,14 @@ export type InventoryItem = {
   frozen?: boolean;
 }; 
 
+export type ShoppingItem = {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  checked: boolean;
+};
+
 export type RecipeIngredient = {
   name: string;
   quantity: number;

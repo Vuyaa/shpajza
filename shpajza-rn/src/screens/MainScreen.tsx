@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ItemModal, RecipeModal, SettingsModal } from '../components/Modals';
+import ShoppingList from '../components/ShoppingList';
 import {
   AuthError,
   createInventoryItem,
@@ -44,7 +45,7 @@ import {
   splitRecipeDescription
 } from '../utils';
 
-type View_ = 'inventory' | 'recipes' | 'matches' | 'profile';
+type View_ = 'inventory' | 'recipes' | 'matches' | 'shopping' | 'profile';
 
 const AI_MODES: { key: AiMode; label: string }[] = [
   { key: 'healthy', label: 'Zdravija hrana' },
@@ -52,7 +53,7 @@ const AI_MODES: { key: AiMode; label: string }[] = [
   { key: 'full', label: 'Puni slijed jela' }
 ];
 
-const TABS: { key: Exclude<View_, 'profile'>; label: string }[] = [
+const TABS: { key: Exclude<View_, 'profile' | 'shopping'>; label: string }[] = [
   { key: 'inventory', label: 'Inventar' },
   { key: 'recipes', label: 'Recepti' },
   { key: 'matches', label: 'Usklađeno' }
@@ -62,6 +63,7 @@ const NAV: { key: View_; icon: string; label: string }[] = [
   { key: 'inventory', icon: '🏠', label: 'Početna' },
   { key: 'recipes', icon: '🍽️', label: 'Recepti' },
   { key: 'matches', icon: '✅', label: 'Usklađeno' },
+  { key: 'shopping', icon: '🛒', label: 'Kupnja' },
   { key: 'profile', icon: '👤', label: 'Profil' }
 ];
 
@@ -565,7 +567,7 @@ export default function MainScreen({ navigation, onLogout }: Props) {
             </View>
           </View>
 
-          {view !== 'profile' && (
+          {view !== 'profile' && view !== 'shopping' && (
             <>
               <TextInput
                 value={search}
@@ -591,6 +593,14 @@ export default function MainScreen({ navigation, onLogout }: Props) {
           {view === 'inventory' && renderInventory()}
           {view === 'recipes' && renderRecipes()}
           {view === 'matches' && renderMatches()}
+          {view === 'shopping' && (
+            <ShoppingList
+              colors={colors}
+              defaultUnit={settings.defaultUnit}
+              onAuthError={onLogout}
+              onInventoryChanged={refresh}
+            />
+          )}
           {view === 'profile' && renderProfile()}
         </ScrollView>
       )}

@@ -19,6 +19,19 @@ model User {
 
   inventory InventoryItem[]
   recipes   Recipe[]
+  shopping  ShoppingItem[]
+}
+
+model ShoppingItem {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  quantity  Float
+  unit      String
+  checked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
 }
 
 model InventoryItem {

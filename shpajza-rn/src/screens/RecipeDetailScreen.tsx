@@ -17,6 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   AuthError,
+  addShoppingBulk,
   createRecipe,
   deleteRecipe,
   loadCachedSettings,
@@ -272,6 +273,21 @@ export default function RecipeDetailScreen({ navigation, route, onLogout }: Prop
     }
   };
 
+  const addMissingToShopping = async () => {
+    try {
+      await addShoppingBulk(
+        missingRows.map(({ ingredient, missing }) => ({
+          name: ingredient.name,
+          quantity: Math.round(missing * 100) / 100,
+          unit: ingredient.unit
+        }))
+      );
+      Alert.alert('Dodano', 'Sastojci koji nedostaju dodani su na popis za kupnju.');
+    } catch (error) {
+      Alert.alert('Greška', error instanceof Error && error.message ? error.message : 'Nije uspjelo dodati na popis.');
+    }
+  };
+
   const share = async () => {
     if (!recipe) return;
     try {
@@ -498,6 +514,14 @@ export default function RecipeDetailScreen({ navigation, route, onLogout }: Prop
                 • {ingredient.name}: {round(missing)} {ingredient.unit}
               </Text>
             ))}
+          {!canMake && (
+            <Pressable
+              onPress={addMissingToShopping}
+              style={{ backgroundColor: colors.primary, borderRadius: 12, paddingVertical: 10, alignItems: 'center', marginTop: 10 }}
+            >
+              <Text style={{ color: colors.onPrimary, fontWeight: '800' }}>🛒 Dodaj nedostajuće na popis</Text>
+            </Pressable>
+          )}
         </View>
 
         <Text style={styles.sectionTitle}>Upute</Text>

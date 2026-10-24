@@ -9,6 +9,7 @@ import {
   Recipe,
   RecipeIngredient,
   RecipeMatch,
+  ShoppingItem,
   User
 } from '../types';
 
@@ -141,6 +142,37 @@ export async function updateInventoryQuantity(id: string, quantity: number) {
 
 export async function deleteInventoryItem(id: string) {
   return requestJson(`/api/inventory/${id}`, { method: 'DELETE' });
+}
+
+export async function loadShopping(): Promise<ShoppingItem[]> {
+  const response = await requestJson('/api/shopping');
+  return (response.items || []).map((item: any) => ({
+    id: String(item.id),
+    name: item.name,
+    quantity: Number(item.quantity ?? 1),
+    unit: item.unit || 'kom',
+    checked: Boolean(item.checked)
+  }));
+}
+
+export async function addShoppingItem(item: { name: string; quantity: number; unit: string }) {
+  return requestJson('/api/shopping', { method: 'POST', body: JSON.stringify(item) });
+}
+
+export async function addShoppingBulk(items: { name: string; quantity: number; unit: string }[]) {
+  return requestJson('/api/shopping/bulk', { method: 'POST', body: JSON.stringify({ items }) });
+}
+
+export async function setShoppingChecked(id: string, checked: boolean) {
+  return requestJson(`/api/shopping/${id}`, { method: 'PATCH', body: JSON.stringify({ checked }) });
+}
+
+export async function deleteShoppingItem(id: string) {
+  return requestJson(`/api/shopping/${id}`, { method: 'DELETE' });
+}
+
+export async function moveCheckedToInventory() {
+  return requestJson('/api/shopping/move-checked', { method: 'POST' });
 }
 
 export async function loadRecipes(): Promise<Recipe[]> {
