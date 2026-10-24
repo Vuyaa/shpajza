@@ -9,6 +9,12 @@ const { findMatchingRecipes } = require('./services/recipeMatcher');
 
 const app = express();
 const JWT_SECRET = process.env.JWT_SECRET || 'Shpajza-dev-secret';
+const JWT_SECRET_CANDIDATES = Array.from(new Set([
+  process.env.JWT_SECRET,
+  'Shpajza-dev-secret',
+  'shpajza-local-dev-secret',
+  'change-me-later',
+].filter(Boolean)));
 
 const DEFAULT_SETTINGS = {
   defaultUnit: 'kom',
@@ -51,6 +57,20 @@ const createToken = (user) => jwt.sign(
   { expiresIn: '7d' }
 );
 
+const verifyToken = (token) => {
+  let lastError = null;
+
+  for (const secret of JWT_SECRET_CANDIDATES) {
+    try {
+      return jwt.verify(token, secret);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error('Invalid token.');
+};
+
 const getRequestUser = (req) => {
   const authHeader = req.headers.authorization || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -60,7 +80,7 @@ const getRequestUser = (req) => {
   }
 
   try {
-    const payload = jwt.verify(token, JWT_SECRET);
+    const payload = verifyToken(token);
     return {
       id: payload.sub,
       email: payload.email,

@@ -264,7 +264,24 @@
     </div>
 
     <script>
-      const API_BASE = 'http://localhost:4000';
+      const resolveApiBase = () => {
+        const override = new URLSearchParams(window.location.search).get('apiBase')
+          || localStorage.getItem('shpajzaApiBase')
+          || '';
+
+        if (override) {
+          return override.replace(/\/$/, '');
+        }
+
+        const host = window.location.hostname;
+        if (!host || host === 'localhost' || host === '127.0.0.1') {
+          return 'http://localhost:4000';
+        }
+
+        return 'https://shpajza.onrender.com';
+      };
+
+      const API_BASE = resolveApiBase();
       const tabs = document.querySelectorAll('.tab');
       const form = document.getElementById('auth-form');
       const nameField = document.getElementById('name-field');

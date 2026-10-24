@@ -24,7 +24,24 @@ const buildRecipeShareText = recipeUtils.buildRecipeShareText || ((recipe = {}) 
   return instructions ? `${recipeName}\n\n${shareSummary}\n\nUpute:\n${instructions}` : `${recipeName}\n\n${shareSummary}`;
 });
 
-const API_BASE = 'https://shpajza.onrender.com';
+const resolveApiBase = () => {
+  const override = new URLSearchParams(window.location.search).get('apiBase')
+    || localStorage.getItem('shpajzaApiBase')
+    || '';
+
+  if (override) {
+    return override.replace(/\/$/, '');
+  }
+
+  const host = window.location.hostname;
+  if (!host || host === 'localhost' || host === '127.0.0.1') {
+    return 'http://localhost:4000';
+  }
+
+  return 'https://shpajza.onrender.com';
+};
+
+const API_BASE = resolveApiBase();
 const token = localStorage.getItem('shpajzaToken');
 const savedUser = JSON.parse(localStorage.getItem('shpajzaUser') || '{}');
 
@@ -66,10 +83,18 @@ const saveSettings = (nextSettings) => {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...readSettings(), ...nextSettings }));
 };
 
-const doLogout = () => {
+const clearAuthSession = () => {
   localStorage.removeItem('shpajzaToken');
   localStorage.removeItem('shpajzaUser');
+};
+
+const redirectToAuth = () => {
+  clearAuthSession();
   window.location.replace('auth-view.html');
+};
+
+const doLogout = () => {
+  redirectToAuth();
 };
 
 if (logoutBtn) {
@@ -122,6 +147,14 @@ const fetchJson = async (url, options = {}) => {
   });
 
   const data = await response.json().catch(() => ({}));
+
+  if (response.status === 401 || response.status === 403) {
+    clearAuthSession();
+    if (window.location.pathname.endsWith('mobile-app.html')) {
+      window.location.replace('auth-view.html');
+    }
+    throw new Error(data.message || 'Sesija je istekla. Prijavite se ponovno.');
+  }
 
   if (!response.ok) {
     throw new Error(data.message || 'Request failed.');
