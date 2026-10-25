@@ -84,11 +84,22 @@ const getRequestUser = (req) => {
   }
 };
 
-const requireAuth = (req, res, next) => {
+const requireAuth = async (req, res, next) => {
   const user = getRequestUser(req);
 
   if (!user) {
     return res.status(401).json({ message: 'Authentication required.' });
+  }
+
+  if (isDbReady()) {
+    const existingUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { id: true },
+    });
+
+    if (!existingUser) {
+      return res.status(401).json({ message: 'Authentication required.' });
+    }
   }
 
   req.user = user;
