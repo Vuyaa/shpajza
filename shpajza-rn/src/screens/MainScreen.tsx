@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -87,6 +87,8 @@ export default function MainScreen({ navigation, onLogout }: Props) {
   const [aiSaving, setAiSaving] = useState(false);
   const [aiSaved, setAiSaved] = useState(false);
   const [aiMode, setAiMode] = useState<AiMode | undefined>(undefined);
+  const pendingQuantityTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const pendingQuantityByItem = useRef<Record<string, number>>({});
 
   const colors: Colors = settings.theme === 'dark' ? darkColors : lightColors;
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -188,13 +190,44 @@ export default function MainScreen({ navigation, onLogout }: Props) {
     }
   };
 
-  const increment = async (item: InventoryItem) => {
-    try {
-      await updateInventoryQuantity(item.id, item.quantity + 1);
-      await refresh();
-    } catch (error) {
-      handleError(error, 'Nije uspjelo ažurirati inventar.');
-    }
+  useEffect(() => {
+    return () => {
+      Object.values(pendingQuantityTimers.current).forEach((timeoutId) => clearTimeout(timeoutId));
+      pendingQuantityTimers.current = {};
+      pendingQuantityByItem.current = {};
+    };
+  }, []);
+
+  const increment = (item: InventoryItem) => {
+    setInventory((currentInventory) => {
+      const currentItem = currentInventory.find((entry) => entry.id === item.id) ?? item;
+      const nextQuantity = Number(currentItem.quantity ?? 0) + 1;
+      pendingQuantityByItem.current[item.id] = nextQuantity;
+
+      if (pendingQuantityTimers.current[item.id]) {
+        clearTimeout(pendingQuantityTimers.current[item.id]);
+      }
+
+      pendingQuantityTimers.current[item.id] = setTimeout(async () => {
+        const finalQuantity = pendingQuantityByItem.current[item.id];
+        delete pendingQuantityTimers.current[item.id];
+        delete pendingQuantityByItem.current[item.id];
+
+        if (finalQuantity === undefined) {
+          return;
+        }
+
+        try {
+          await updateInventoryQuantity(item.id, finalQuantity);
+        } catch (error) {
+          handleError(error, 'Nije uspjelo ažurirati inventar.');
+        }
+      }, 500);
+
+      return currentInventory.map((entry) =>
+        entry.id === item.id ? { ...entry, quantity: nextQuantity } : entry
+      );
+    });
   };
 
   const remove = async (item: InventoryItem) => {
