@@ -692,7 +692,7 @@ h1 {
   align-items: center;
   justify-content: center;
   gap: 3px;
-  font-size: 0.64rem;
+  font-size: 0.7rem;
   padding: 7px 4px 6px;
   min-height: 56px;
   transition: all 0.2s ease;
@@ -706,7 +706,7 @@ h1 {
   max-width: 100%;
   white-space: normal;
   text-align: center;
-  font-size: 0.96em;
+  font-size: 1em;
 }
 
 .nav-item.active {
