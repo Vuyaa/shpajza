@@ -105,37 +105,9 @@ if (profileLogoutBtn) {
   profileLogoutBtn.addEventListener('click', doLogout);
 }
 
-let inventoryData = [
-  { id: 1, name: 'Jaja', quantity: '6 kom', expiry: 'ističe za 2 dana', status: 'good' },
-  { id: 2, name: 'Mlječni sir', quantity: '200 g', expiry: 'ističe za 1 dan', status: 'warning' },
-  { id: 3, name: 'Rajčica', quantity: '4 kom', expiry: 'ističe danas', status: 'danger' },
-  { id: 4, name: 'Kruh', quantity: '1 kom', expiry: 'ističe za 5 dana', status: 'good' },
-  { id: 5, name: 'Lubenica', quantity: '2 kom', expiry: 'ističe za 4 dana', status: 'good' }
-];
+let inventoryData = [];
 
-let recipeData = [
-  {
-    id: 1,
-    name: 'Omlet',
-    description: 'Brzi doručak s jajima i sirom.',
-    ready: true,
-    ingredients: ['Jaja 2 kom', 'Sir 50 g', 'Sol']
-  },
-  {
-    id: 2,
-    name: 'Salata od rajčice',
-    description: 'Svježa i jednostavna salata.',
-    ready: true,
-    ingredients: ['Rajčica 2 kom', 'Lubenica 1 kom', 'Sol']
-  },
-  {
-    id: 3,
-    name: 'Sendvič',
-    description: 'Klasičan sendvič s kruhom i sirom.',
-    ready: false,
-    ingredients: ['Kruh 2 kom', 'Sir 80 g', 'Rajčica 1 kom']
-  }
-];
+let recipeData = [];
 
 const fetchJson = async (url, options = {}) => {
   const response = await fetch(url, {
@@ -245,7 +217,9 @@ const loadUserData = async () => {
       applySettingsToUI();
     }
   } catch (error) {
-    console.warn('Using demo data because backend is unavailable:', error.message);
+    console.warn('Backend unavailable; showing empty user state:', error.message);
+    inventoryData = [];
+    recipeData = [];
   }
 
   renderInventory();
