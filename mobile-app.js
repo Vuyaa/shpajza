@@ -226,7 +226,7 @@ const loadUserData = async () => {
       };
     });
 
-    inventoryData = nextInventory.length ? nextInventory : inventoryData;
+    inventoryData = nextInventory;
     recipeData = (recipesResponse.recipes || []).map((recipe) => ({
       id: recipe.id,
       name: recipe.name,
@@ -694,23 +694,36 @@ inventoryList?.addEventListener('click', async (event) => {
 
   try {
     if (action === 'add') {
-      await fetchJson(`${API_BASE}/api/inventory/${itemId}`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ quantity: Number(item.quantityValue || 0) + 1 })
-      });
+      try {
+        await fetchJson(`${API_BASE}/api/inventory/${itemId}`, {
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ quantity: Number(item.quantityValue || 0) + 1 })
+        });
+      } catch (error) {
+        if (!String(error.message || '').includes('not found')) {
+          throw error;
+        }
+      }
     }
 
     if (action === 'remove') {
-      await fetchJson(`${API_BASE}/api/inventory/${itemId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      try {
+        await fetchJson(`${API_BASE}/api/inventory/${itemId}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } catch (error) {
+        if (!String(error.message || '').includes('not found')) {
+          throw error;
+        }
+      }
     }
 
     await loadUserData();
   } catch (error) {
-    alert(error.message || 'Nije uspjelo ažurirati inventar.');
+    console.warn('Inventory update failed:', error.message || error);
+    await loadUserData();
   }
 });
 
