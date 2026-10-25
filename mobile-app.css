@@ -53,10 +53,12 @@ button, input {
 
 .app-window {
   flex: 1;
+  min-height: 0;
   background: linear-gradient(180deg, rgba(255,255,255,0.72), rgba(255,255,255,0.92));
   border-radius: 28px;
   padding: 16px 14px 18px;
-  overflow: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .topbar {
