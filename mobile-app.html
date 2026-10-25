@@ -258,19 +258,13 @@
     <script>
       const isLocalhost = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
 
-      if ('serviceWorker' in navigator) {
+      if ('serviceWorker' in navigator && !isLocalhost) {
         window.addEventListener('load', async () => {
           try {
             const registrations = await navigator.serviceWorker.getRegistrations();
             await Promise.all(registrations.map((registration) => registration.unregister()));
             await caches.keys().then((keys) => Promise.all(keys.map((key) => caches.delete(key))));
-
-            if (!isLocalhost) {
-              await navigator.serviceWorker.register(`./sw.js?v=${Date.now()}`);
-              navigator.serviceWorker.addEventListener('controllerchange', () => {
-                window.location.reload();
-              });
-            }
+            await navigator.serviceWorker.register(`./sw.js?v=${Date.now()}`);
           } catch (error) {
             console.warn('Service worker registration failed:', error);
           }
