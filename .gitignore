@@ -9,3 +9,5 @@ coverage/
 *.log
 
 .expo/
+.idea/
+*.iml
