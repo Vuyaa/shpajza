@@ -88,7 +88,7 @@ const requireAuth = async (req, res, next) => {
   const user = getRequestUser(req);
 
   if (!user) {
-    return res.status(401).json({ message: 'Authentication required.' });
+    return res.status(401).json({ message: 'Potrebna je prijava.' });
   }
 
   if (isDbReady()) {
@@ -98,7 +98,7 @@ const requireAuth = async (req, res, next) => {
     });
 
     if (!existingUser) {
-      return res.status(401).json({ message: 'Authentication required.' });
+      return res.status(401).json({ message: 'Potrebna je prijava.' });
     }
   }
 
@@ -218,24 +218,24 @@ app.post('/api/auth/register', async (req, res) => {
   const { name, email, password } = req.body || {};
 
   if (!name || !email || !password) {
-    return res.status(400).json({ message: 'Name, email and password are required.' });
+    return res.status(400).json({ message: 'Naziv, e-mail i lozinka su obavezni.' });
   }
 
   if (password.length < 6) {
-    return res.status(400).json({ message: 'Password must be at least 6 characters long.' });
+    return res.status(400).json({ message: 'Lozinka mora imati najmanje 6 znakova.' });
   }
 
   const normalizedEmail = String(email).trim().toLowerCase();
 
   if (!/\S+@\S+\.\S+/.test(normalizedEmail)) {
-    return res.status(400).json({ message: 'Email format is invalid.' });
+    return res.status(400).json({ message: 'Neispravan format e-mail adrese.' });
   }
 
   if (isDbReady()) {
     const existingUser = await prisma.user.findUnique({ where: { email: normalizedEmail } });
 
     if (existingUser) {
-      return res.status(409).json({ message: 'User with this email already exists.' });
+      return res.status(409).json({ message: 'Korisnik s ovim e-mailom već postoji.' });
     }
 
     const { salt, hash } = hashPassword(password);
@@ -258,7 +258,7 @@ app.post('/api/auth/register', async (req, res) => {
     await seedDefaultInventoryForUser(newUser.id);
 
     return res.status(201).json({
-      message: 'User registered successfully.',
+      message: 'Registracija je uspješna.',
       token,
       user: {
         id: newUser.id,
@@ -269,7 +269,7 @@ app.post('/api/auth/register', async (req, res) => {
   }
 
   if (users.some((user) => user.email === normalizedEmail)) {
-    return res.status(409).json({ message: 'User with this email already exists.' });
+    return res.status(409).json({ message: 'Korisnik s ovim e-mailom već postoji.' });
   }
 
   const { salt, hash } = hashPassword(password);
@@ -294,7 +294,7 @@ app.post('/api/auth/register', async (req, res) => {
   await seedDefaultInventoryForUser(newUser.id);
 
   return res.status(201).json({
-    message: 'User registered successfully.',
+    message: 'Registracija je uspješna.',
     token,
     user: {
       id: newUser.id,
@@ -308,7 +308,7 @@ app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body || {};
 
   if (!email || !password) {
-    return res.status(400).json({ message: 'Email and password are required.' });
+    return res.status(400).json({ message: 'E-mail i lozinka su obavezni.' });
   }
 
   const normalizedEmail = String(email).trim().toLowerCase();
@@ -317,13 +317,13 @@ app.post('/api/auth/login', async (req, res) => {
     const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
 
     if (!user) {
-      return res.status(401).json({ message: 'Invalid email or password.' });
+      return res.status(401).json({ message: 'Neispravan e-mail ili lozinka.' });
     }
 
     const isValid = verifyPassword(password, user.salt, user.passwordHash);
 
     if (!isValid) {
-      return res.status(401).json({ message: 'Invalid email or password.' });
+      return res.status(401).json({ message: 'Neispravan e-mail ili lozinka.' });
     }
 
     const token = createToken({
@@ -333,7 +333,7 @@ app.post('/api/auth/login', async (req, res) => {
     });
 
     return res.json({
-      message: 'Login successful.',
+      message: 'Prijava je uspješna.',
       token,
       user: {
         id: user.id,
@@ -346,13 +346,13 @@ app.post('/api/auth/login', async (req, res) => {
   const user = users.find((candidate) => candidate.email === normalizedEmail);
 
   if (!user) {
-    return res.status(401).json({ message: 'Invalid email or password.' });
+    return res.status(401).json({ message: 'Neispravan e-mail ili lozinka.' });
   }
 
   const validPassword = verifyPassword(password, user.salt, user.passwordHash);
 
   if (!validPassword) {
-    return res.status(401).json({ message: 'Invalid email or password.' });
+    return res.status(401).json({ message: 'Neispravan e-mail ili lozinka.' });
   }
 
   const token = createToken({
@@ -362,7 +362,7 @@ app.post('/api/auth/login', async (req, res) => {
   });
 
   return res.json({
-    message: 'Login successful.',
+    message: 'Prijava je uspješna.',
     token,
     user: {
       id: user.id,
@@ -380,7 +380,7 @@ app.get('/api/auth/me', requireAuth, async (req, res) => {
     });
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found.' });
+      return res.status(404).json({ message: 'Korisnik nije pronađen.' });
     }
 
     return res.json({ user });
@@ -389,7 +389,7 @@ app.get('/api/auth/me', requireAuth, async (req, res) => {
   const user = users.find((candidate) => candidate.id === req.user.id);
 
   if (!user) {
-    return res.status(404).json({ message: 'User not found.' });
+    return res.status(404).json({ message: 'Korisnik nije pronađen.' });
   }
 
   return res.json({
@@ -417,7 +417,7 @@ app.post('/api/inventory', async (req, res) => {
 
   if (!name || quantity === undefined || !unit) {
     return res.status(400).json({
-      message: 'Name, quantity and unit are required.',
+      message: 'Naziv, količina i jedinica su obavezni.',
     });
   }
 
@@ -474,7 +474,7 @@ app.patch('/api/inventory/:id', requireAuth, async (req, res) => {
     const item = await prisma.inventoryItem.findUnique({ where: { id } });
 
     if (!item || item.userId !== req.user.id) {
-      return res.status(404).json({ message: 'Inventory item not found.' });
+      return res.status(404).json({ message: 'Stavka inventara nije pronađena.' });
     }
 
     const updatedItem = await prisma.inventoryItem.update({
@@ -494,7 +494,7 @@ app.patch('/api/inventory/:id', requireAuth, async (req, res) => {
   const itemIndex = inventory.findIndex((entry) => entry.id === id && entry.userId === req.user.id);
 
   if (itemIndex === -1) {
-    return res.status(404).json({ message: 'Inventory item not found.' });
+    return res.status(404).json({ message: 'Stavka inventara nije pronađena.' });
   }
 
   const item = inventory[itemIndex];
@@ -517,7 +517,7 @@ app.delete('/api/inventory/:id', requireAuth, async (req, res) => {
     const item = await prisma.inventoryItem.findUnique({ where: { id } });
 
     if (!item || item.userId !== req.user.id) {
-      return res.status(404).json({ message: 'Inventory item not found.' });
+      return res.status(404).json({ message: 'Stavka inventara nije pronađena.' });
     }
 
     await prisma.inventoryItem.delete({ where: { id } });
@@ -527,7 +527,7 @@ app.delete('/api/inventory/:id', requireAuth, async (req, res) => {
   const itemIndex = inventory.findIndex((entry) => entry.id === id && entry.userId === req.user.id);
 
   if (itemIndex === -1) {
-    return res.status(404).json({ message: 'Inventory item not found.' });
+    return res.status(404).json({ message: 'Stavka inventara nije pronađena.' });
   }
 
   inventory.splice(itemIndex, 1);
@@ -561,7 +561,7 @@ app.post('/api/shopping', requireAuth, requireDb, async (req, res) => {
   const { name, quantity, unit } = req.body || {};
 
   if (!name || !String(name).trim() || !unit) {
-    return res.status(400).json({ message: 'Name and unit are required.' });
+    return res.status(400).json({ message: 'Naziv i jedinica su obavezni.' });
   }
 
   const item = await prisma.shoppingItem.create({
@@ -607,7 +607,7 @@ app.patch('/api/shopping/:id', requireAuth, requireDb, async (req, res) => {
   const item = await prisma.shoppingItem.findUnique({ where: { id } });
 
   if (!item || item.userId !== req.user.id) {
-    return res.status(404).json({ message: 'Shopping item not found.' });
+    return res.status(404).json({ message: 'Stavka popisa za kupnju nije pronađena.' });
   }
 
   const updated = await prisma.shoppingItem.update({
@@ -628,7 +628,7 @@ app.delete('/api/shopping/:id', requireAuth, requireDb, async (req, res) => {
   const item = await prisma.shoppingItem.findUnique({ where: { id } });
 
   if (!item || item.userId !== req.user.id) {
-    return res.status(404).json({ message: 'Shopping item not found.' });
+    return res.status(404).json({ message: 'Stavka popisa za kupnju nije pronađena.' });
   }
 
   await prisma.shoppingItem.delete({ where: { id } });
@@ -673,7 +673,7 @@ app.put('/api/settings', requireAuth, async (req, res) => {
   const existingUser = users.find((user) => user.id === req.user.id);
 
   if (!existingUser) {
-    return res.status(404).json({ message: 'User not found.' });
+    return res.status(404).json({ message: 'Korisnik nije pronađen.' });
   }
 
   existingUser.settings = nextSettings;
@@ -724,7 +724,7 @@ app.post('/api/recipes', requireAuth, async (req, res) => {
   const { name, description, ingredients } = req.body || {};
 
   if (!name || !String(name).trim()) {
-    return res.status(400).json({ message: 'Recipe name is required.' });
+    return res.status(400).json({ message: 'Naziv recepta je obavezan.' });
   }
 
   const parsedIngredients = Array.isArray(ingredients)
@@ -736,7 +736,7 @@ app.post('/api/recipes', requireAuth, async (req, res) => {
     : [];
 
   if (!parsedIngredients.length) {
-    return res.status(400).json({ message: 'At least one ingredient is required.' });
+    return res.status(400).json({ message: 'Potrebno je dodati barem jedan sastojak.' });
   }
 
   const recipePayload = {
@@ -801,13 +801,13 @@ app.put('/api/recipes/:id', requireAuth, async (req, res) => {
   const { name, description, ingredients } = req.body || {};
 
   if (!name || !String(name).trim()) {
-    return res.status(400).json({ message: 'Recipe name is required.' });
+    return res.status(400).json({ message: 'Naziv recepta je obavezan.' });
   }
 
   const parsedIngredients = parseRecipeIngredients(ingredients);
 
   if (!parsedIngredients.length) {
-    return res.status(400).json({ message: 'At least one ingredient is required.' });
+    return res.status(400).json({ message: 'Potrebno je dodati barem jedan sastojak.' });
   }
 
   const nextName = String(name).trim();
@@ -817,7 +817,7 @@ app.put('/api/recipes/:id', requireAuth, async (req, res) => {
     const existing = await prisma.recipe.findUnique({ where: { id } });
 
     if (!existing || existing.userId !== req.user.id) {
-      return res.status(404).json({ message: 'Recipe not found or not editable.' });
+      return res.status(404).json({ message: 'Recept nije pronađen ili nije moguće uređivati ga.' });
     }
 
     const [, recipe] = await prisma.$transaction([
@@ -839,7 +839,7 @@ app.put('/api/recipes/:id', requireAuth, async (req, res) => {
   const index = recipeStore.findIndex((recipe) => recipe.id === id && recipe.userId === req.user.id);
 
   if (index === -1) {
-    return res.status(404).json({ message: 'Recipe not found or not editable.' });
+    return res.status(404).json({ message: 'Recept nije pronađen ili nije moguće uređivati ga.' });
   }
 
   recipeStore[index] = {
@@ -862,7 +862,7 @@ app.delete('/api/recipes/:id', requireAuth, async (req, res) => {
     const existing = await prisma.recipe.findUnique({ where: { id } });
 
     if (!existing || existing.userId !== req.user.id) {
-      return res.status(404).json({ message: 'Recipe not found or not editable.' });
+      return res.status(404).json({ message: 'Recept nije pronađen ili nije moguće uređivati ga.' });
     }
 
     await prisma.$transaction([
@@ -876,7 +876,7 @@ app.delete('/api/recipes/:id', requireAuth, async (req, res) => {
   const index = recipeStore.findIndex((recipe) => recipe.id === id && recipe.userId === req.user.id);
 
   if (index === -1) {
-    return res.status(404).json({ message: 'Recipe not found or not editable.' });
+    return res.status(404).json({ message: 'Recept nije pronađen ili nije moguće uređivati ga.' });
   }
 
   recipeStore.splice(index, 1);
@@ -892,7 +892,7 @@ app.post('/api/recipes/:id/use', requireAuth, async (req, res) => {
   const recipe = allRecipes.find((candidate) => candidate.id === recipeId);
 
   if (!recipe) {
-    return res.status(404).json({ message: 'Recipe not found.' });
+    return res.status(404).json({ message: 'Recept nije pronađen.' });
   }
 
   const items = await listInventoryForUser(req.user.id);
@@ -904,7 +904,7 @@ app.post('/api/recipes/:id/use', requireAuth, async (req, res) => {
 
     if (!matching.length) {
       return res.status(400).json({
-        message: `You do not have enough ingredients to use this recipe. Missing: ${ingredient.name}.`,
+        message: `Nemate dovoljno sastojaka za ovaj recept. Nedostaje: ${ingredient.name}.`,
       });
     }
 
@@ -916,7 +916,7 @@ app.post('/api/recipes/:id/use', requireAuth, async (req, res) => {
 
     if (total < remaining) {
       return res.status(400).json({
-        message: `You do not have enough ${ingredient.name}.`,
+        message: `Nemate dovoljno ${ingredient.name}.`,
       });
     }
 
@@ -946,7 +946,7 @@ app.post('/api/recipes/:id/use', requireAuth, async (req, res) => {
   }
 
   return res.json({
-    message: `Recipe "${recipe.name}" used successfully.`,
+    message: `Recept "${recipe.name}" je uspješno iskorišten.`,
     recipeId: recipe.id,
     updatedItems: updates,
   });
@@ -969,7 +969,7 @@ app.get('/api/recipes/match', async (req, res) => {
 
 app.use((err, req, res, next) => {
   console.error(err);
-  res.status(500).json({ message: 'Unexpected server error.' });
+  res.status(500).json({ message: 'Došlo je do neočekivane pogreške na serveru.' });
 });
 
 module.exports = app;

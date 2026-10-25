@@ -135,7 +135,7 @@ const fetchJson = async (url, options = {}) => {
   }
 
   if (!response.ok) {
-    throw new Error(data.message || 'Request failed.');
+    throw new Error(data.message || 'Došlo je do pogreške. Pokušajte ponovno.');
   }
 
   return data;
@@ -385,6 +385,21 @@ const renderMatches = () => {
   }).join('');
 };
 
+const applyOptimisticInventoryMutation = (mutateFn, requestFn) => {
+  const previousInventory = JSON.parse(JSON.stringify(inventoryData));
+
+  mutateFn();
+  renderInventory();
+  renderMatches();
+
+  return requestFn().catch((error) => {
+    inventoryData = previousInventory;
+    renderInventory();
+    renderMatches();
+    throw error;
+  });
+};
+
 const renderAiSuggestion = (suggestion = null) => {
   const output = document.getElementById('ai-suggestion-output');
   if (!output) {
@@ -627,34 +642,35 @@ inventoryForm?.addEventListener('submit', async (event) => {
     return;
   }
 
-  const newItem = {
+  const optimisticItem = {
+    id: `local-${Date.now()}`,
     name,
-    quantity,
+    quantityValue: quantity,
+    quantity: `${quantity} ${unit}`,
     unit,
-    expiryDate
+    expiry: 'ističe za 3 dana',
+    status: 'good',
+    expiryDate,
   };
+
+  inventoryData = [optimisticItem, ...inventoryData];
+  renderInventory();
+  renderMatches();
+  closeInventoryModal();
 
   try {
     await fetchJson(`${API_BASE}/api/inventory`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify(newItem)
+      body: JSON.stringify({ name, quantity, unit, expiryDate })
     });
 
     await loadUserData();
-    closeInventoryModal();
-    return;
   } catch (error) {
-    inventoryData.unshift({
-      id: Date.now(),
-      name,
-      quantity: `${quantity} ${unit}`,
-      expiry: 'ističe za 3 dana',
-      status: 'good'
-    });
-
+    inventoryData = inventoryData.filter((item) => String(item.id) !== String(optimisticItem.id));
     renderInventory();
-    closeInventoryModal();
+    renderMatches();
+    console.warn('Inventory add failed:', error.message || error);
   }
 });
 
@@ -672,36 +688,77 @@ inventoryList?.addEventListener('click', async (event) => {
     return;
   }
 
+  const previousInventory = JSON.parse(JSON.stringify(inventoryData));
+
+  if (action === 'add') {
+    inventoryData = inventoryData.map((entry) => {
+      if (String(entry.id) !== String(itemId)) {
+        return entry;
+      }
+
+      const nextQuantity = Number(entry.quantityValue || 0) + 1;
+      return {
+        ...entry,
+        quantityValue: nextQuantity,
+        quantity: `${nextQuantity} ${entry.unit || 'kom'}`,
+      };
+    });
+    renderInventory();
+    renderMatches();
+  }
+
+  if (action === 'remove') {
+    const nextQuantity = Number(item.quantityValue || 0) - 1;
+
+    if (nextQuantity > 0) {
+      inventoryData = inventoryData.map((entry) => {
+        if (String(entry.id) !== String(itemId)) {
+          return entry;
+        }
+
+        return {
+          ...entry,
+          quantityValue: nextQuantity,
+          quantity: `${nextQuantity} ${entry.unit || 'kom'}`,
+        };
+      });
+    } else {
+      inventoryData = inventoryData.filter((entry) => String(entry.id) !== String(itemId));
+    }
+
+    renderInventory();
+    renderMatches();
+  }
+
   try {
     if (action === 'add') {
-      try {
-        await fetchJson(`${API_BASE}/api/inventory/${itemId}`, {
-          method: 'PATCH',
-          headers: { Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ quantity: Number(item.quantityValue || 0) + 1 })
-        });
-      } catch (error) {
-        if (!String(error.message || '').includes('not found')) {
-          throw error;
-        }
-      }
+      await fetchJson(`${API_BASE}/api/inventory/${itemId}`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ quantity: Number(item.quantityValue || 0) + 1 })
+      });
     }
 
     if (action === 'remove') {
-      try {
+      if (Number(item.quantityValue || 0) > 1) {
+        await fetchJson(`${API_BASE}/api/inventory/${itemId}`, {
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ quantity: Number(item.quantityValue || 0) - 1 })
+        });
+      } else {
         await fetchJson(`${API_BASE}/api/inventory/${itemId}`, {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` }
         });
-      } catch (error) {
-        if (!String(error.message || '').includes('not found')) {
-          throw error;
-        }
       }
     }
 
     await loadUserData();
   } catch (error) {
+    inventoryData = previousInventory;
+    renderInventory();
+    renderMatches();
     console.warn('Inventory update failed:', error.message || error);
     await loadUserData();
   }
@@ -798,6 +855,28 @@ recipesList?.addEventListener('click', async (event) => {
 
   const recipeId = useButton.dataset.useRecipeId;
 
+  const previousInventory = JSON.parse(JSON.stringify(inventoryData));
+  const recipe = recipeData.find((entry) => String(entry.id) === String(recipeId));
+
+  if (recipe && recipe.ingredients?.length) {
+    inventoryData = inventoryData.map((item) => {
+      const match = recipe.ingredients.find((ingredientText) => ingredientText.toLowerCase().startsWith(`${item.name.toLowerCase()} `));
+      if (!match || !item.quantityValue) {
+        return item;
+      }
+
+      const nextQuantity = Math.max(0, Number(item.quantityValue || 0) - 1);
+      return {
+        ...item,
+        quantityValue: nextQuantity,
+        quantity: nextQuantity > 0 ? `${nextQuantity} ${item.unit || 'kom'}` : `${nextQuantity} ${item.unit || 'kom'}`,
+      };
+    }).filter((item) => Number(item.quantityValue || 0) > 0);
+
+    renderInventory();
+    renderMatches();
+  }
+
   try {
     await fetchJson(`${API_BASE}/api/recipes/${recipeId}/use`, {
       method: 'POST',
@@ -806,6 +885,9 @@ recipesList?.addEventListener('click', async (event) => {
 
     await loadUserData();
   } catch (error) {
+    inventoryData = previousInventory;
+    renderInventory();
+    renderMatches();
     alert(error.message || 'Nije moguće iskoristiti recept.');
   }
 });
