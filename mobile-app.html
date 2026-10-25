@@ -9,7 +9,10 @@
     <title>Shpajza | Mobilna aplikacija</title>
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="media/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="mobile-app.css" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <link rel="stylesheet" href="mobile-app.css?v=20261025-1905" />
     <script>
       if (!localStorage.getItem('shpajzaToken')) {
         window.location.replace('auth-view.html');
@@ -85,14 +88,62 @@
                   <div class="ai-label">AI recept</div>
                   <h3>Predlog na temelju inventara</h3>
                 </div>
-                <button class="pill-button secondary" id="ai-suggest-btn" type="button">Generiraj</button>
               </div>
+
+              <div id="ai-mode-pills" class="ai-mode-pills" aria-label="AI režimi">
+                <button type="button" class="pill-button secondary ai-mode-btn active" data-ai-mode="healthy">Zdravija hrana</button>
+                <button type="button" class="pill-button secondary ai-mode-btn" data-ai-mode="quick">Brzo gotovo</button>
+                <button type="button" class="pill-button secondary ai-mode-btn" data-ai-mode="full">Puni slijed jela</button>
+                <button type="button" class="pill-button secondary ai-regenerate-btn" id="ai-regenerate-btn">↻ Regeneriraj</button>
+              </div>
+
               <div id="ai-suggestion-output" class="ai-output">
-                Upiši ili generiraj prijedlog recepata po namirnicama koje trenutno imaš.
+                Odaberi stil ili pritisni Regeneriraj za prijedlog recepta po namirnicama koje trenutno imaš.
               </div>
+
+              <button type="button" class="pill-button ai-save-btn" id="ai-save-btn" hidden>💾 Spremi u moje recepte</button>
             </div>
 
             <div id="matches-list" class="stack"></div>
+          </section>
+
+          <section class="panel" id="shopping-panel" aria-live="polite">
+            <div class="panel-header">
+              <h2>Popis za kupnju</h2>
+            </div>
+
+            <form id="shopping-form" class="shopping-form">
+              <div class="shopping-row">
+                <input id="shopping-name" name="shopping-name" type="text" placeholder="Što treba kupiti?" />
+                <input id="shopping-quantity" name="shopping-quantity" type="number" min="1" step="1" value="1" />
+              </div>
+
+              <div class="unit-pills" id="shopping-unit-picker">
+                <button type="button" class="unit-pill active" data-unit="kom">kom</button>
+                <button type="button" class="unit-pill" data-unit="g">g</button>
+                <button type="button" class="unit-pill" data-unit="kg">kg</button>
+                <button type="button" class="unit-pill" data-unit="l">l</button>
+                <button type="button" class="unit-pill" data-unit="ml">ml</button>
+                <button type="button" class="unit-pill" data-unit="pak">pak</button>
+                <button type="button" class="unit-pill" data-unit="kutija">kutija</button>
+              </div>
+
+              <select id="shopping-unit" name="shopping-unit" class="hidden-select" aria-hidden="true">
+                <option value="kom" selected>kom</option>
+                <option value="g">g</option>
+                <option value="kg">kg</option>
+                <option value="l">l</option>
+                <option value="ml">ml</option>
+                <option value="pak">pak</option>
+                <option value="kutija">kutija</option>
+              </select>
+
+              <button type="submit" class="pill-button">+ Dodaj na popis</button>
+            </form>
+
+            <div id="shopping-list" class="stack"></div>
+
+            <button type="button" class="pill-button secondary hidden" id="move-checked-btn">✓ Kupljeno (0) → prebaci u inventar</button>
           </section>
 
           <section class="panel" id="profile-panel" aria-live="polite">
@@ -115,9 +166,10 @@
       </div>
 
       <nav class="bottom-nav" aria-label="Donja navigacija">
-        <button class="nav-item active" type="button" data-view="home">🏠<span>Početna</span></button>
-        <button class="nav-item" type="button" data-view="inventory">📦<span>Inventar</span></button>
+        <button class="nav-item active" type="button" data-view="inventory">🏠<span>Početna</span></button>
         <button class="nav-item" type="button" data-view="recipes">🍽️<span>Recepti</span></button>
+        <button class="nav-item" type="button" data-view="matches">✅<span>Usklađeno</span></button>
+        <button class="nav-item" type="button" data-view="shopping">🛒<span>Kupnja</span></button>
         <button class="nav-item" type="button" data-view="profile">👤<span>Profil</span></button>
       </nav>
     </div>
@@ -271,7 +323,7 @@
         });
       }
     </script>
-    <script src="mobile-app.js"></script>
+    <script src="mobile-app.js?v=20261025-1703"></script>
   </body>
 </html>
 

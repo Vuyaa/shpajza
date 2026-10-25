@@ -75,6 +75,19 @@ const defaultSettings = {
   theme: 'light'
 };
 
+const AI_MODES = [
+  { key: 'healthy', label: 'Zdravija hrana' },
+  { key: 'quick', label: 'Brzo gotovo' },
+  { key: 'full', label: 'Puni slijed jela' }
+];
+
+let aiSuggestion = null;
+let aiMode = 'healthy';
+let aiLoading = false;
+let aiSaving = false;
+let aiSaved = false;
+let aiExpanded = false;
+
 const readSettings = () => {
   try {
     const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
@@ -113,6 +126,7 @@ if (profileLogoutBtn) {
 let inventoryData = [];
 
 let recipeData = [];
+let shoppingData = [];
 
 const fetchJson = async (url, options = {}) => {
   const response = await fetch(url, {
@@ -179,15 +193,18 @@ const getExpiryState = (expiryDate) => {
 
 const loadUserData = async () => {
   try {
-    const [inventoryResponse, recipesResponse, settingsResponse] = await Promise.all([
+    const [inventoryResponse, recipesResponse, settingsResponse, shoppingResponse] = await Promise.all([
       fetchJson(`${API_BASE}/api/inventory`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${localStorage.getItem('shpajzaToken')}` }
       }),
       fetchJson(`${API_BASE}/api/recipes`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${localStorage.getItem('shpajzaToken')}` }
       }),
       fetchJson(`${API_BASE}/api/settings`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${localStorage.getItem('shpajzaToken')}` }
+      }),
+      fetchJson(`${API_BASE}/api/shopping`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('shpajzaToken')}` }
       })
     ]);
 
@@ -218,6 +235,14 @@ const loadUserData = async () => {
       })
     }));
 
+    shoppingData = (shoppingResponse.items || []).map((item) => ({
+      id: item.id,
+      name: item.name,
+      quantity: Number(item.quantity ?? 1),
+      unit: item.unit || 'kom',
+      checked: Boolean(item.checked),
+    }));
+
     if (settingsResponse && settingsResponse.settings) {
       saveSettings(settingsResponse.settings);
       applySettingsToUI();
@@ -226,16 +251,25 @@ const loadUserData = async () => {
     console.warn('Backend unavailable; showing empty user state:', error.message);
     inventoryData = [];
     recipeData = [];
+    shoppingData = [];
   }
 
   renderInventory();
   renderRecipes();
   renderMatches();
+  renderShopping();
 };
+
 
 const inventoryList = document.getElementById('inventory-list');
 const recipesList = document.getElementById('recipes-list');
 const matchesList = document.getElementById('matches-list');
+const shoppingList = document.getElementById('shopping-list');
+const shoppingForm = document.getElementById('shopping-form');
+const shoppingNameInput = document.getElementById('shopping-name');
+const shoppingQuantityInput = document.getElementById('shopping-quantity');
+const shoppingUnitSelect = document.getElementById('shopping-unit');
+const moveCheckedBtn = document.getElementById('move-checked-btn');
 const inventoryCount = document.getElementById('inventory-count');
 const expiringCount = document.getElementById('expiring-count');
 const readyCount = document.getElementById('ready-count');
@@ -360,30 +394,46 @@ const renderRecipes = () => {
   readyCount.textContent = filteredRecipes.filter((recipe) => recipe.ready).length;
 };
 
-const renderMatches = () => {
-  const filteredRecipes = getFilteredRecipes();
-
-  if (!filteredRecipes.length) {
-    matchesList.innerHTML = '<article class="match-card partial"><div class="match-top"><div class="match-name">Nema rezultata</div></div><div class="match-meta">Nema predloga za ovu pretragu.</div></article>';
+const renderShopping = () => {
+  if (!shoppingList) {
     return;
   }
 
-  matchesList.innerHTML = filteredRecipes.map((recipe) => {
-    const stateClass = recipe.ready ? 'ready' : 'partial';
-    const badgeText = recipe.ready ? 'Možete napraviti' : 'Fale nam sastojci';
-    const badgeClass = recipe.ready ? 'good' : 'warning';
+  const checkedCount = shoppingData.filter((item) => item.checked).length;
+  if (moveCheckedBtn) {
+    moveCheckedBtn.classList.toggle('hidden', checkedCount === 0);
+    moveCheckedBtn.textContent = `✓ Kupljeno (${checkedCount}) → prebaci u inventar`;
+  }
 
-    return `
-      <article class="match-card ${stateClass}">
-        <div class="match-top">
-          <div class="match-name">${recipe.name}</div>
-          <span class="badge ${badgeClass}">${badgeText}</span>
+  if (!shoppingData.length) {
+    shoppingList.innerHTML = '<article class="item-card shopping-item"><div class="item-name">Popis je prazan.</div><div class="item-meta">Dodajte prvu stavku.</div></article>';
+    return;
+  }
+
+  shoppingList.innerHTML = shoppingData.map((item) => `
+    <article class="item-card shopping-item ${item.checked ? 'primary' : 'alt'}">
+      <label class="shopping-check" for="shopping-check-${item.id}">
+        <input id="shopping-check-${item.id}" type="checkbox" data-shopping-check="${item.id}" ${item.checked ? 'checked' : ''} />
+        <div>
+          <div class="item-name" style="text-decoration:${item.checked ? 'line-through' : 'none'}; color:${item.checked ? 'var(--muted)' : '#1f2f43'};">${item.name}</div>
+          <div class="item-meta">${Number(item.quantity || 0)} ${item.unit || 'kom'}</div>
         </div>
-        <div class="match-meta">${recipe.ready ? 'Imate sve sastojke.' : 'Nedostaje: Kruh 1 kom'}</div>
-      </article>
-    `;
-  }).join('');
+      </label>
+
+      <div class="item-actions">
+        <span class="badge ${item.checked ? 'good' : 'warning'}">${item.checked ? 'Kupljeno' : 'Lista'}</span>
+        <button type="button" class="mini-btn danger" data-shopping-action="delete" data-shopping-id="${item.id}" aria-label="Ukloni ${item.name}">✕</button>
+      </div>
+    </article>
+  `).join('');
 };
+
+
+const renderMatches = () => {
+  matchesList.innerHTML = '';
+};
+
+const pendingInventoryMutations = new Map();
 
 const applyOptimisticInventoryMutation = (mutateFn, requestFn) => {
   const previousInventory = JSON.parse(JSON.stringify(inventoryData));
@@ -400,55 +450,173 @@ const applyOptimisticInventoryMutation = (mutateFn, requestFn) => {
   });
 };
 
-const renderAiSuggestion = (suggestion = null) => {
+const scheduleInventoryPersist = (itemId, requestFn) => {
+  if (pendingInventoryMutations.has(itemId)) {
+    clearTimeout(pendingInventoryMutations.get(itemId));
+  }
+
+  const timeoutId = setTimeout(async () => {
+    pendingInventoryMutations.delete(itemId);
+
+    try {
+      await requestFn();
+    } catch (error) {
+      console.warn('Inventory sync failed:', error.message || error);
+      await loadUserData();
+    }
+  }, 500);
+
+  pendingInventoryMutations.set(itemId, timeoutId);
+};
+
+const syncAiButtons = () => {
+  const saveButton = document.getElementById('ai-save-btn');
+  const regenerateButton = document.getElementById('ai-regenerate-btn');
+
+  document.querySelectorAll('.ai-mode-btn').forEach((button) => {
+    const isActive = button.dataset.aiMode === aiMode;
+    button.classList.toggle('active', isActive);
+    button.disabled = aiLoading;
+  });
+
+  if (regenerateButton) {
+    regenerateButton.disabled = aiLoading;
+  }
+
+  if (saveButton) {
+    const canSave = Boolean(aiSuggestion && !aiSuggestion.insufficient && !aiLoading);
+    saveButton.hidden = !canSave;
+    saveButton.disabled = aiSaving || aiSaved;
+    saveButton.textContent = aiSaved ? '✓ Spremljeno u moje recepte' : aiSaving ? 'Spremam...' : '💾 Spremi u moje recepte';
+  }
+};
+
+const renderAiSuggestion = (suggestion = aiSuggestion) => {
   const output = document.getElementById('ai-suggestion-output');
+  const saveButton = document.getElementById('ai-save-btn');
+
   if (!output) {
     return;
   }
 
-  if (!suggestion) {
-    output.textContent = 'Upiši ili generiraj prijedlog recepata po namirnicama koje trenutno imaš.';
+  aiSuggestion = suggestion || null;
+
+  if (aiLoading) {
+    output.innerHTML = '<span class="ai-block ai-muted">Generiram preporuku...</span>';
+    if (saveButton) {
+      saveButton.hidden = true;
+    }
+    syncAiButtons();
     return;
   }
 
-  const ingredientsText = (suggestion.ingredients || [])
-    .map((ingredient) => `${ingredient.name} ${ingredient.quantity || 1}${ingredient.unit || 'kom'}`)
-    .join(', ') || 'Nema detalja o sastojcima.';
+  if (!aiSuggestion) {
+    output.innerHTML = '<span class="ai-block ai-muted">Odaberi stil ili pritisni Regeneriraj za prijedlog recepta po namirnicama koje trenutno imaš.</span>';
+    if (saveButton) {
+      saveButton.hidden = true;
+    }
+    syncAiButtons();
+    return;
+  }
+
+  if (aiSuggestion.insufficient) {
+    output.innerHTML = `
+      <span class="ai-block ai-title">⚠️ Premalo sastojaka</span>
+      <span class="ai-block">${aiSuggestion.message || aiSuggestion.reason || aiSuggestion.description || 'Dodajte još namirnica u inventar ili ih stavite na popis za kupnju.'}</span>
+      <span class="ai-block ai-muted">Dodajte još namirnica u inventar ili ih stavite na popis za kupnju.</span>
+    `;
+    if (saveButton) {
+      saveButton.hidden = true;
+    }
+    syncAiButtons();
+    return;
+  }
+
+  const shortDescription = (aiSuggestion.description || 'Predloženo na temelju inventara.').trim();
+  const compactDescription = shortDescription.length > 120 ? `${shortDescription.slice(0, 117).trim()}...` : shortDescription;
+  const ingredients = (aiSuggestion.ingredients || []).slice(0, 4);
+  const ingredientSummary = ingredients.length
+    ? ingredients.map((ingredient) => `${ingredient.name || 'Sastojak'}`).join(' • ')
+    : 'Nema detalja';
+  const kcalMarkup = aiSuggestion.totalKcal
+    ? `<span class="ai-block"><strong>• Ukupno ${aiSuggestion.totalKcal} kcal</strong>${aiSuggestion.servings && aiSuggestion.servings > 1 ? ` • ${aiSuggestion.kcalPerServing ?? 0} kcal po porciji (${aiSuggestion.servings} porcije)` : ''}</span>`
+    : '';
+  const fullInstructions = aiSuggestion.instructions ? String(aiSuggestion.instructions).replace(/\s+/g, ' ').trim() : '';
+  const expandedMarkup = aiExpanded && fullInstructions
+    ? `<span class="ai-block"><strong>Upute:</strong> ${fullInstructions}</span>`
+    : '';
 
   output.innerHTML = `
-    <strong>${suggestion.title || 'Predloženi recept'}</strong><br />
-    <span>${suggestion.description || 'Predloženo na temelju inventara.'}</span><br /><br />
-    <strong>Sastojci:</strong> ${ingredientsText}<br />
-    <strong>Razlog:</strong> ${suggestion.reason || 'Najbolje odgovara vašem inventaru.'}<br />
-    <strong>Vjerojatnost:</strong> ${suggestion.confidence || 85}%<br /><br />
-    <strong>Upute:</strong><br />${suggestion.instructions || 'Prilagodite količine prema inventaru.'}
+    <span class="ai-title">${aiSuggestion.title || 'Predloženi recept'}</span>
+    <span class="ai-block">${compactDescription}</span>
+    ${kcalMarkup}
+    ${expandedMarkup}
   `;
+
+  if (saveButton) {
+    saveButton.hidden = false;
+  }
+  syncAiButtons();
 };
 
-const suggestAiRecipe = async () => {
-  const output = document.getElementById('ai-suggestion-output');
-  const button = document.getElementById('ai-suggest-btn');
+const requestAiSuggestion = async (mode = aiMode, regenerate = false) => {
+  aiMode = mode;
+  aiSaved = false;
+  aiSuggestion = null;
+  aiLoading = true;
 
-  if (!output || !button) {
-    return;
+  const output = document.getElementById('ai-suggestion-output');
+  const saveButton = document.getElementById('ai-save-btn');
+
+  if (output) {
+    output.innerHTML = '<span class="ai-block ai-muted">Generiram preporuku...</span>';
   }
 
-  button.disabled = true;
-  output.textContent = 'Generiram preporuku...';
+  if (saveButton) {
+    saveButton.hidden = true;
+    saveButton.disabled = true;
+  }
+
+  syncAiButtons();
+
+  let timeoutId = null;
 
   try {
-    const data = await fetchJson(`${API_BASE}/api/recipes/ai-suggest`, {
+    const controller = new AbortController();
+    timeoutId = setTimeout(() => controller.abort(), 12000);
+
+    const response = await fetch(`${API_BASE}/api/recipes/ai-suggest`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('shpajzaToken')}`,
+      },
+      signal: controller.signal,
       body: JSON.stringify({
-        prompt: `Predloži jedan praktičan recept pomoću ovih namirnica: ${inventoryData.map((item) => `${item.name} ${item.quantityValue || 1} ${item.unit || 'kom'}`).join(', ') || 'nema namirnica'}`,
-      })
+        mode,
+        avoidTitle: regenerate && aiSuggestion && !aiSuggestion.insufficient ? aiSuggestion.title : undefined,
+      }),
     });
 
-    renderAiSuggestion(data.suggestion || null);
+    const data = await response.json().catch(() => ({}));
+
+    if (response.status === 401 || response.status === 403) {
+      clearAuthSession();
+      window.location.replace('auth-view.html');
+      throw new Error(data.message || 'Sesija je istekla. Prijavite se ponovno.');
+    }
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Do?lo je do pogre?ke. Poku?ajte ponovno.');
+    }
+
+    aiSuggestion = data.suggestion || null;
+    aiLoading = false;
+    renderAiSuggestion(aiSuggestion);
   } catch (error) {
     console.warn('AI suggestion unavailable:', error.message);
-    renderAiSuggestion({
+    aiSuggestion = {
       title: 'Fallback recept',
       description: 'AI model trenutno nije dostupan, ali imamo lokalni prijedlog.',
       ingredients: inventoryData.slice(0, 3).map((item) => ({
@@ -458,12 +626,210 @@ const suggestAiRecipe = async () => {
       })),
       instructions: 'Pokušajte napraviti jednostavno jelo od dostupnih namirnica.',
       confidence: 50,
-      reason: 'Korišten je lokalni fallback zbog nedostupnog AI servisa.',
-    });
+      reason: 'Korišten je lokalni fallback zbog nedostupnog AI servisa.'
+    };
+    aiLoading = false;
+    renderAiSuggestion(aiSuggestion);
   } finally {
-    button.disabled = false;
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    aiLoading = false;
+    syncAiButtons();
   }
 };
+
+const generateAiRecipe = (mode = aiMode, regenerate = false) => requestAiSuggestion(mode, regenerate);
+
+const saveAiRecipe = async () => {
+  if (!aiSuggestion || aiSaving || aiSaved) {
+    return;
+  }
+
+  aiSaving = true;
+  syncAiButtons();
+
+  try {
+    const payload = {
+      name: aiSuggestion.title || 'Predlo?eni recept',
+      description: aiSuggestion.description || 'Opis recepta',
+      ingredients: (aiSuggestion.ingredients || []).map((ingredient) => ({
+        name: String(ingredient.name || '').trim(),
+        quantity: Number(ingredient.quantity ?? 1),
+        unit: String(ingredient.unit || 'kom').trim() || 'kom',
+      })).filter((ingredient) => ingredient.name && Number.isFinite(ingredient.quantity)),
+    };
+
+    if (!payload.ingredients.length) {
+      throw new Error('AI prijedlog nema nijedan sastojak za spremanje.');
+    }
+
+    const response = await fetch(`${API_BASE}/api/recipes`, {
+      method: 'POST',
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('shpajzaToken')}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (response.status === 401 || response.status === 403) {
+      clearAuthSession();
+      window.location.replace('auth-view.html');
+      throw new Error(data.message || 'Sesija je istekla. Prijavite se ponovno.');
+    }
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Nije uspjelo spremiti AI recept.');
+    }
+
+    aiSaved = true;
+    aiSuggestion = null;
+    aiExpanded = false;
+    renderAiSuggestion();
+    await loadUserData();
+  } catch (error) {
+    console.warn('Failed to save AI recipe:', error.message);
+    alert(error.message || 'Nije uspjelo spremiti AI recept.');
+  } finally {
+    aiSaving = false;
+    syncAiButtons();
+  }
+};
+
+shoppingForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+
+  const name = shoppingNameInput?.value.trim();
+  const quantity = Number(shoppingQuantityInput?.value || 1);
+  const unit = shoppingUnitSelect?.value || 'kom';
+
+  if (!name || !unit) {
+    alert('Naziv i jedinica su obavezni.');
+    return;
+  }
+
+  try {
+    const response = await fetchJson(`${API_BASE}/api/shopping`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${localStorage.getItem('shpajzaToken')}` },
+      body: JSON.stringify({ name, quantity, unit })
+    });
+
+    if (response?.item) {
+      shoppingData = [...shoppingData, {
+        id: response.item.id,
+        name: response.item.name,
+        quantity: Number(response.item.quantity ?? quantity),
+        unit: response.item.unit || unit,
+        checked: Boolean(response.item.checked),
+      }];
+      shoppingForm.reset();
+      if (shoppingQuantityInput) {
+        shoppingQuantityInput.value = '1';
+      }
+      renderShopping();
+    }
+  } catch (error) {
+    alert(error.message || 'Nije uspjelo dodati stavku na popis za kupnju.');
+  }
+});
+
+const syncShoppingUnitButtons = () => {
+  const selectedUnit = shoppingUnitSelect?.value || 'kom';
+  document.querySelectorAll('.unit-pill').forEach((button) => {
+    button.classList.toggle('active', button.dataset.unit === selectedUnit);
+  });
+};
+
+document.querySelectorAll('.unit-pill').forEach((button) => {
+  button.addEventListener('click', () => {
+    if (!shoppingUnitSelect) {
+      return;
+    }
+    shoppingUnitSelect.value = button.dataset.unit || 'kom';
+    syncShoppingUnitButtons();
+  });
+});
+
+syncShoppingUnitButtons();
+
+shoppingList?.addEventListener('change', async (event) => {
+  const checkbox = event.target.closest('[data-shopping-check]');
+  if (!checkbox) {
+    return;
+  }
+
+  const itemId = checkbox.dataset.shoppingCheck;
+  const item = shoppingData.find((entry) => String(entry.id) === String(itemId));
+  if (!item) {
+    return;
+  }
+
+  try {
+    const response = await fetchJson(`${API_BASE}/api/shopping/${itemId}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${localStorage.getItem('shpajzaToken')}` },
+      body: JSON.stringify({ checked: checkbox.checked })
+    });
+
+    shoppingData = shoppingData.map((entry) => String(entry.id) === String(itemId)
+      ? { ...entry, checked: Boolean(response?.item?.checked ?? checkbox.checked) }
+      : entry);
+    renderShopping();
+  } catch (error) {
+    checkbox.checked = !checkbox.checked;
+    console.warn('Shopping update failed:', error.message || error);
+  }
+});
+
+shoppingList?.addEventListener('click', async (event) => {
+  const button = event.target.closest('[data-shopping-action]');
+  if (!button) {
+    return;
+  }
+
+  const itemId = button.dataset.shoppingId;
+  const action = button.dataset.shoppingAction;
+
+  if (action !== 'delete') {
+    return;
+  }
+
+  try {
+    await fetchJson(`${API_BASE}/api/shopping/${itemId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${localStorage.getItem('shpajzaToken')}` }
+    });
+    shoppingData = shoppingData.filter((item) => String(item.id) !== String(itemId));
+    renderShopping();
+  } catch (error) {
+    console.warn('Shopping delete failed:', error.message || error);
+  }
+});
+
+moveCheckedBtn?.addEventListener('click', async () => {
+  const checkedItems = shoppingData.filter((item) => item.checked);
+
+  if (!checkedItems.length) {
+    alert('Nema ozna?enih stavki za premje?tanje u inventar.');
+    return;
+  }
+
+  try {
+    await fetchJson(`${API_BASE}/api/shopping/move-checked`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${localStorage.getItem('shpajzaToken')}` }
+    });
+    await loadUserData();
+  } catch (error) {
+    alert(error.message || 'Nije uspjelo premjestiti kupljene stavke.');
+  }
+});
+
 
 const tabs = document.querySelectorAll('.tab');
 const panels = document.querySelectorAll('.panel');
@@ -477,11 +843,13 @@ const setActiveView = (viewName) => {
   });
 
   panels.forEach((panel) => {
-    panel.classList.toggle('active', panel.id === `${normalizedView}-panel` || (normalizedView === 'inventory' && panel.id === 'inventory-panel'));
+    const active = panel.id === `${normalizedView}-panel` || (normalizedView === 'inventory' && panel.id === 'inventory-panel');
+    panel.classList.toggle('active', active);
   });
 
   navItems.forEach((button) => {
-    button.classList.toggle('active', button.dataset.view === viewName || (normalizedView === 'inventory' && button.dataset.view === 'home'));
+    const active = button.dataset.view === normalizedView || (normalizedView === 'inventory' && button.dataset.view === 'inventory');
+    button.classList.toggle('active', active);
   });
 };
 
@@ -509,6 +877,7 @@ if (searchInput) {
     renderInventory();
     renderRecipes();
     renderMatches();
+    renderShopping();
   });
 }
 
@@ -597,9 +966,38 @@ refreshMatchesBtn?.addEventListener('click', () => {
   }
 });
 
-if (aiSuggestBtn) {
-  aiSuggestBtn.addEventListener('click', suggestAiRecipe);
-}
+document.querySelectorAll('.ai-mode-btn').forEach((button) => {
+  button.addEventListener('click', () => {
+    if (aiLoading) {
+      return;
+    }
+
+    aiMode = button.dataset.aiMode || 'healthy';
+    generateAiRecipe(aiMode);
+  });
+});
+
+document.getElementById('ai-regenerate-btn')?.addEventListener('click', () => {
+  generateAiRecipe(aiMode, true);
+});
+
+document.getElementById('ai-save-btn')?.addEventListener('click', saveAiRecipe);
+
+document.getElementById('ai-suggestion-output')?.addEventListener('click', (event) => {
+  if (!event.target || !event.target.closest('#ai-suggestion-output')) {
+    return;
+  }
+
+  if (!aiSuggestion || aiLoading) {
+    return;
+  }
+
+  aiExpanded = !aiExpanded;
+  renderAiSuggestion(aiSuggestion);
+});
+
+syncAiButtons();
+renderAiSuggestion();
 
 let deferredInstallPrompt = null;
 
@@ -705,6 +1103,21 @@ inventoryList?.addEventListener('click', async (event) => {
     });
     renderInventory();
     renderMatches();
+
+    scheduleInventoryPersist(itemId, async () => {
+      const currentItem = inventoryData.find((entry) => String(entry.id) === String(itemId));
+      if (!currentItem) {
+        return;
+      }
+
+      await fetchJson(`${API_BASE}/api/inventory/${itemId}`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${localStorage.getItem('shpajzaToken')}` },
+        body: JSON.stringify({ quantity: Number(currentItem.quantityValue || 0) })
+      });
+    });
+
+    return;
   }
 
   if (action === 'remove') {
@@ -722,38 +1135,40 @@ inventoryList?.addEventListener('click', async (event) => {
           quantity: `${nextQuantity} ${entry.unit || 'kom'}`,
         };
       });
-    } else {
-      inventoryData = inventoryData.filter((entry) => String(entry.id) !== String(itemId));
+      renderInventory();
+      renderMatches();
+
+      scheduleInventoryPersist(itemId, async () => {
+        const currentItem = inventoryData.find((entry) => String(entry.id) === String(itemId));
+        if (!currentItem) {
+          return;
+        }
+
+        await fetchJson(`${API_BASE}/api/inventory/${itemId}`, {
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${localStorage.getItem('shpajzaToken')}` },
+          body: JSON.stringify({ quantity: Number(currentItem.quantityValue || 0) })
+        });
+      });
+
+      return;
     }
 
+    inventoryData = inventoryData.filter((entry) => String(entry.id) !== String(itemId));
     renderInventory();
     renderMatches();
+
+    scheduleInventoryPersist(itemId, async () => {
+      await fetchJson(`${API_BASE}/api/inventory/${itemId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${localStorage.getItem('shpajzaToken')}` }
+      });
+    });
+
+    return;
   }
 
   try {
-    if (action === 'add') {
-      await fetchJson(`${API_BASE}/api/inventory/${itemId}`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ quantity: Number(item.quantityValue || 0) + 1 })
-      });
-    }
-
-    if (action === 'remove') {
-      if (Number(item.quantityValue || 0) > 1) {
-        await fetchJson(`${API_BASE}/api/inventory/${itemId}`, {
-          method: 'PATCH',
-          headers: { Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ quantity: Number(item.quantityValue || 0) - 1 })
-        });
-      } else {
-        await fetchJson(`${API_BASE}/api/inventory/${itemId}`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` }
-        });
-      }
-    }
-
     await loadUserData();
   } catch (error) {
     inventoryData = previousInventory;
