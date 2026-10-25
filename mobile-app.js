@@ -117,6 +117,7 @@ let recipeData = [];
 const fetchJson = async (url, options = {}) => {
   const response = await fetch(url, {
     ...options,
+    cache: 'no-store',
     headers: {
       'Content-Type': 'application/json',
       ...(options.headers || {}),

@@ -256,11 +256,24 @@
 
     <script src="recipe-utils.js"></script>
     <script>
+      const isLocalhost = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js').catch((error) => {
+        window.addEventListener('load', async () => {
+          try {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(registrations.map((registration) => registration.unregister()));
+            await caches.keys().then((keys) => Promise.all(keys.map((key) => caches.delete(key))));
+
+            if (!isLocalhost) {
+              await navigator.serviceWorker.register(`./sw.js?v=${Date.now()}`);
+              navigator.serviceWorker.addEventListener('controllerchange', () => {
+                window.location.reload();
+              });
+            }
+          } catch (error) {
             console.warn('Service worker registration failed:', error);
-          });
+          }
         });
       }
     </script>
