@@ -53,6 +53,11 @@ const logoutBtn = document.getElementById('logout-btn');
 const profileName = document.getElementById('profile-name');
 const profileEmail = document.getElementById('profile-email');
 const profileLogoutBtn = document.getElementById('profile-logout-btn');
+const welcomeName = document.getElementById('welcome-name');
+
+if (welcomeName) {
+  welcomeName.textContent = savedUser.name ? `Zdravo, ${savedUser.name}` : 'Zdravo';
+}
 
 if (profileName && savedUser.name) {
   profileName.textContent = savedUser.name;

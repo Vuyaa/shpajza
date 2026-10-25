@@ -1,4 +1,4 @@
-const CACHE_NAME = 'shpajza-v1';
+const CACHE_NAME = 'shpajza-v3';
 const APP_SHELL = [
   './',
   './index.html',
@@ -27,6 +27,21 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') {
+    return;
+  }
+
+  const isNavigationRequest = event.request.mode === 'navigate';
+
+  if (isNavigationRequest) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          return response;
+        })
+        .catch(() => caches.match('./mobile-app.html') || caches.match('./index.html'))
+    );
     return;
   }
 
